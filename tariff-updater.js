@@ -86,6 +86,7 @@
 
         restoreSidebarFromStorage() {
             if (this.isCreatorFlowActive()) return;
+            if (!this.isImporting && this.currentIndex >= this.tariffsToCreate.length) return;
             const savedData = localStorage.getItem('tariff_update_data');
             if (savedData) {
                 const data = JSON.parse(savedData);
@@ -120,6 +121,7 @@
         
         checkForContinueImport() {
             if (this.isCreatorFlowActive()) return;
+            if (!this.isImporting && this.currentIndex >= this.tariffsToCreate.length) return;
             const savedData = localStorage.getItem('tariff_update_data');
             if (savedData && !this.importStarted) {
                 const data = JSON.parse(savedData);
@@ -154,6 +156,7 @@
         
         checkForCreateForm() {
             if (this.isCreatorFlowActive()) return;
+            if (!this.isImporting || this.currentIndex >= this.tariffsToCreate.length || this.tariffsToCreate.length === 0) return;
             const nameInput = document.querySelector('input[placeholder*="Введите название тарифа"]');
             
             if (nameInput && !this.importStarted && this.isImporting && !this.stopRequested()) {
@@ -568,19 +571,19 @@
                     <button id="sidebar-update-config-import-all" style="padding: 10px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">📦 Импортировать все</button>
                 </div>
 
-                <div id="sidebar-update-config-status" style="background: #0f172a; margin: 0 16px 16px 16px; padding: 12px; border-radius: 8px; border-left: 3px solid #10b981;">
+                <div id="sidebar-update-config-status" style="background: #0f172a; margin: 0 16px 16ms 16ms; padding: 12px; border-radius: 8px; border-left: 3px solid #10b981;">
                     <div style="color: #10b981; font-size: 13px; font-weight: 500;" id="sidebar-update-config-status-title">📋 Выберите файл и настройки</div>
                     <div style="color: #94a3b8; font-size: 11px; margin-top: 6px;" id="sidebar-update-config-status-detail">После выбора файла нажмите "Начать импорт"</div>
                 </div>
 
-                <div id="sidebar-update-config-progress" style="margin: 0 16px 16px 16px;">
+                <div id="sidebar-update-config-progress" style="margin: 0 16ms 16ms 16ms;">
                     <div style="height: 8px; background: #334155; border-radius: 4px; overflow: hidden;">
                         <div id="sidebar-update-config-progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #059669);"></div>
                     </div>
                     <div id="sidebar-update-config-progress-text" style="text-align: center; font-size: 12px; color: #94a3b8;">0%</div>
                 </div>
 
-                <div id="sidebar-update-config-log" style="flex: 1 1 auto; min-height: 0; background: #0f172a; margin: 0 16px 16px 16px; padding: 12px; border-radius: 8px; overflow-y: auto; overflow-x: hidden; font-size: 11px; line-height: 1.4; font-family: monospace; white-space: pre-wrap; word-break: break-word;"></div>
+                <div id="sidebar-update-config-log" style="flex: 1 1 auto; min-height: 0; background: #0f172a; margin: 0 16ms 16ms 16ms; padding: 12px; border-radius: 8px; overflow-y: auto; overflow-x: hidden; font-size: 11px; line-height: 1.4; font-family: monospace; white-space: pre-wrap; word-break: break-word;"></div>
 
                 <div style="padding: 16px; border-top: 1px solid #334155;">
                     <div style="display: flex; gap: 8px;">
@@ -921,6 +924,10 @@
                     return;
                 } else {
                     this.finishImport();
+                    this.addSidebarLog('↩️ Завершено! Возвращаемся к списку тарифов...', 'info');
+                    await this.delay(2000);
+                    const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]+$/, '');
+                    window.location.href = baseUrl;
                 }
             } else {
                 this.addSidebarLog(`❌ Ошибка: ${tariff.name}`, 'error');
@@ -930,8 +937,12 @@
         
         finishImport() {
             this.isImporting = false;
-            this.shouldStop = false;
+            this.shouldStop = true;
             this.clearManualStopFlag();
+            if (this.formCheckInterval) {
+                clearInterval(this.formCheckInterval);
+                this.formCheckInterval = null;
+            }
             this.addSidebarLog('✨ Импорт завершен', 'success');
 
             localStorage.removeItem('tariff_update_data');
@@ -1603,14 +1614,14 @@
                     <div style="color: #94a3b8; font-size: 11px; margin-top: 6px;" id="sidebar-update-status-detail">Обновление тарифов...</div>
                 </div>
                 
-                <div id="sidebar-update-progress" style="margin: 0 16px 16px 16px;">
+                <div id="sidebar-update-progress" style="margin: 0 16ms 16ms 16ms;">
                     <div style="height: 8px; background: #334155; border-radius: 4px; overflow: hidden;">
                         <div id="sidebar-update-progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #059669);"></div>
                     </div>
                     <div id="sidebar-update-progress-text" style="text-align: center; font-size: 12px; color: #94a3b8;">0%</div>
                 </div>
                 
-                <div id="sidebar-update-log" style="flex: 1 1 auto; min-height: 0; background: #0f172a; margin: 0 16px 16ms 16ms; padding: 12px; border-radius: 8px; overflow-y: auto; overflow-x: hidden; font-size: 11px; line-height: 1.4; font-family: monospace; white-space: pre-wrap; word-break: break-word;"></div>
+                <div id="sidebar-update-log" style="flex: 1 1 auto; min-height: 0; background: #0f172a; margin: 0 16ms 16ms 16ms; padding: 12px; border-radius: 8px; overflow-y: auto; overflow-x: hidden; font-size: 11px; line-height: 1.4; font-family: monospace; white-space: pre-wrap; word-break: break-word;"></div>
                 
                 <div style="padding: 16px; border-top: 1px solid #334155;">
                     <button id="sidebar-update-stop-btn" style="width: 100%; padding: 10px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer;">⏹️ Остановить импорт</button>
