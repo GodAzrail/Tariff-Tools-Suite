@@ -312,21 +312,8 @@
                 return btn;
             };
 
-            this.pvzCreateButton = createProButton('tariff-pvz-create-pro-nav-btn', 'Массовое ПВЗ', 'btn-pro-pvz', () => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = '.xlsx, .xls';
-                input.onchange = (e) => {
-                    const file = e.target.files[0];
-                    if (file && window.startPVZTariffCreationFromExcel) {
-                        window.startPVZTariffCreationFromExcel(file);
-                    } else {
-                        alert('Модуль массового создания ПВЗ не найден');
-                    }
-                };
-                input.click();
-            });
-
+            // ИЗМЕНЕНО: Вызываем showPvzSidebar вместо input.click()
+            this.pvzCreateButton = createProButton('tariff-pvz-create-pro-nav-btn', 'Массовое ПВЗ', 'btn-pro-pvz', () => this.showPvzSidebar());
             this.importButton = createProButton('tariff-create-pro-nav-btn', 'Массовое Доставка', 'btn-pro-create', () => this.showImportSidebar());
             this.renameButton = createProButton('tariff-rename-pro-nav-btn', 'Переименовать', 'btn-pro-rename', () => this.showRenameSidebar());
             this.updateButton = createProButton('tariff-import-pro-nav-btn', 'Импорт', 'btn-pro-import', () => this.showUpdateSidebar());
@@ -363,21 +350,8 @@
                         return btn;
                     };
 
-                    this.pvzCreateButton = createProButton('tariff-pvz-create-pro-nav-btn', 'Массовое ПВЗ', 'btn-pro-pvz', () => {
-                        const input = document.createElement('input');
-                        input.type = 'file';
-                        input.accept = '.xlsx, .xls';
-                        input.onchange = (e) => {
-                            const file = e.target.files[0];
-                            if (file && window.startPVZTariffCreationFromExcel) {
-                                window.startPVZTariffCreationFromExcel(file);
-                            } else {
-                                alert('Модуль массового создания ПВЗ не найден. Проверьте подключение в manifest.json');
-                            }
-                        };
-                        input.click();
-                    });
-
+                    // ИЗМЕНЕНО: Вызываем showPvzSidebar вместо input.click()
+                    this.pvzCreateButton = createProButton('tariff-pvz-create-pro-nav-btn', 'Массовое ПВЗ', 'btn-pro-pvz', () => this.showPvzSidebar());
                     this.importButton = createProButton('tariff-create-pro-nav-btn', 'Массовое Доставка', 'btn-pro-create', () => this.showImportSidebar());
                     this.renameButton = createProButton('tariff-rename-pro-nav-btn', 'Переименование', 'btn-pro-rename', () => this.showRenameSidebar());
                     this.updateButton = createProButton('tariff-import-pro-nav-btn', 'Импорт', 'btn-pro-import', () => this.showUpdateSidebar());
@@ -420,6 +394,40 @@
             if (existingRenameBtn) existingRenameBtn.remove();
             const existingPvzBtn = document.querySelector('#tariff-pvz-create-pro-nav-btn');
             if (existingPvzBtn) existingPvzBtn.remove();
+        }
+
+        // ДОБАВЛЕНО: Новый метод для запуска ПВЗ-сайдбара
+        showPvzSidebar() {
+            const tryShowSidebar = () => {
+                if (typeof window.openPVZTariffCreator === 'function') {
+                    window.openPVZTariffCreator();
+                    return true;
+                }
+                return false;
+            };
+
+            if (tryShowSidebar()) {
+                return;
+            }
+
+            this.addSidebarLog('⏳ Ожидание инициализации модуля ПВЗ...', 'info');
+
+            let attempts = 0;
+            const maxAttempts = 20;
+            const waitInterval = setInterval(() => {
+                attempts++;
+
+                if (tryShowSidebar()) {
+                    clearInterval(waitInterval);
+                    return;
+                }
+
+                if (attempts >= maxAttempts) {
+                    clearInterval(waitInterval);
+                    console.error('[TariffExportPro] openPVZTariffCreator не инициализирован');
+                    alert('Модуль массового создания ПВЗ не найден. Проверьте, загрузился ли pvz-tariff-creator.js');
+                }
+            }, 250);
         }
         
         showImportSidebar() {
@@ -1462,6 +1470,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({success: true});
         return true;
     }
+
+    // ДОБАВЛЕНО: Обработка сообщения для вызова ПВЗ из popup
+    if (request.action === 'showPvzSidebar') {
+        if (window.tariffExportPro) {
+            window.tariffExportPro.showPvzSidebar();
+        }
+        sendResponse({success: true});
+        return true;
+    }
 });
 
 // Для совместимости с popup.js
@@ -1487,6 +1504,13 @@ window.addEventListener('message', (event) => {
     if (event.data && event.data.action === 'showExportSidebar') {
         if (window.tariffExportPro) {
             window.tariffExportPro.showSidebar();
+        }
+    }
+
+    // ДОБАВЛЕНО: Обработка сообщения для вызова ПВЗ из сторонних скриптов/страницы
+    if (event.data && event.data.action === 'showPvzSidebar') {
+        if (window.tariffExportPro) {
+            window.tariffExportPro.showPvzSidebar();
         }
     }
 });
