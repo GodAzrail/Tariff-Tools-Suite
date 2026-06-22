@@ -10,6 +10,7 @@
 //   - При завершении ВСЕХ тарифов автоматически возвращается на стартовую страницу (baseTariffsUrl)
 //   - Немного ускорено создание: сокращены задержки в ключевых местах (на ~20-30%)
 //     без риска сильных race-condition (оставлены разумные минимумы)
+//   - Добавлено ожидание рендеринга SPA при переходе к созданию тарифа (защита от race-condition)
 // ============================================================
 
 (function() {
@@ -569,7 +570,7 @@
             }
             if (this.isTariffsListPage()) {
                 this.addSidebarLog('📄 Открываем форму создания тарифа', 'info');
-                this.openCreatePageFromList();
+                await this.openCreatePageFromList();
                 return;
             }
             this.addSidebarLog('↪️ Переход к списку тарифов', 'info');
@@ -609,18 +610,38 @@
             }
         }
 
-        openCreatePageFromList() {
-            const buttons = Array.from(document.querySelectorAll('button'));
-            const createBtn = buttons.find(btn => {
-                const text = (btn.textContent || '').trim();
-                return text === 'Создать' || text.includes('Создать');
-            });
-            if (createBtn) {
-                createBtn.click();
-                this.addSidebarLog('🖱️ Нажата кнопка «Создать» на текущей странице тарифов', 'info');
-                return;
+        async openCreatePageFromList() {
+            // Делаем несколько попыток с интервалом (до 5 секунд ожидания), так как SPA рендерит интерфейс с задержкой
+            for (let attempts = 0; attempts < 10; attempts++) {
+                if (this.shouldStop) return;
+
+                // 1. Вдруг форма создания УЖЕ открылась (система запомнила состояние или медленный рендер)
+                if (this.isCreatePage() && this.findNameInput()) {
+                    this.addSidebarLog('💡 Обнаружена форма создания, продолжаем заполнение', 'info');
+                    this.importStarted = true;
+                    this.startImportOnCreatePage();
+                    return;
+                }
+
+                // 2. Ищем кнопку "Создать"
+                const buttons = Array.from(document.querySelectorAll('button'));
+                const createBtn = buttons.find(btn => {
+                    const text = (btn.textContent || '').trim();
+                    return text === 'Создать' || text.includes('Создать');
+                });
+
+                if (createBtn) {
+                    createBtn.click();
+                    this.addSidebarLog('🖱️ Нажата кнопка «Создать» на текущей странице тарифов', 'info');
+                    return; // Выходим из функции, дальше сработает registerPageWatchers, когда форма откроется
+                }
+
+                // Ждем 500мс перед следующей проверкой
+                await this.delay(500);
             }
-            this.addSidebarLog('❌ Кнопка «Создать» на текущей странице тарифов не найдена', 'error');
+
+            // Если за 5 секунд ничего не нашлось
+            this.addSidebarLog('❌ Кнопка «Создать» или форма создания тарифа не найдены', 'error');
             this.stopImport();
         }
 
