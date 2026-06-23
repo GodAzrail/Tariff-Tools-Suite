@@ -1,4 +1,3 @@
-// resize-dialog.js - fixed for /configurator/del-orgs
 (function() {
     'use strict';
     console.log('📏 resize-dialog.js loaded (del-orgs scroll fix)');
