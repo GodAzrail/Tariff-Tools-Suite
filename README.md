@@ -3,8 +3,8 @@
 
 # Tariff Tools Suite
 
-**Версия расширения:** 2.0.0 (manifest.json)  
-**Репозиторий:** Tariff-Tools-Suite-2.0.0
+**Версия расширения:** 2.0.1 (manifest.json)  
+**Репозиторий:** Tariff-Tools-Suite
 
 ---
 
