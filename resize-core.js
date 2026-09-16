@@ -56,6 +56,7 @@
 
     const observer = new MutationObserver(() => {
       if (window.__disableResizeObservers) return;
+      if (isBlockedPage()) return; // Защита от SPA-переходов
 
       const dialog = document.getElementById(dialogId);
       if (!dialog || !isVisible(dialog) || dialog.hasAttribute(resizedAttr)) return;
@@ -119,6 +120,7 @@
       // Initial pass
       setTimeout(() => {
         if (window.__disableResizeObservers) return;
+        if (isBlockedPage()) return; // Доп. защита при инициализации
         const dialog = document.getElementById(id);
         if (!dialog || dialog.hasAttribute(resizedAttr)) return;
 
@@ -185,4 +187,9 @@
   } else {
     console.log('[ResizeCore] Compatibility mode enabled with watchDialog');
   }
+
+  // Обновляем статус блокировки при переходе по ссылкам SPA
+  window.addEventListener('spa-route-changed', () => {
+    window.TariffResizeCore.disabled = isBlockedPage();
+  });
 })();

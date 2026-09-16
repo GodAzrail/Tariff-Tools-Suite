@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Tariff Tools Suite",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Экспорт, массовое создание, импорт и инструменты редактирования тарифов.",
   "permissions": [
     "activeTab",
@@ -18,12 +18,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://mow-delivery-calculator.dns-shop.ru/configurator/tariffs",
-        "https://mow-delivery-calculator.dns-shop.ru/configurator/tariffs/",
-        "https://mow-delivery-calculator.dns-shop.ru/configurator/tariffs/*",
-        "https://mow-delivery-calculator.dns-shop.ru/configurator/tariffs/*/*",
-        "https://mow-delivery-calculator.dns-shop.ru/configurator/del-orgs",
-        "https://mow-delivery-calculator.dns-shop.ru/configurator/del-orgs/*"
+        "https://mow-delivery-calculator.dns-shop.ru/*"
       ],
       "css": ["content.css"],
       "js": [
@@ -32,17 +27,7 @@
         "resize-dialog.js",
         "resize-intervals-dialog.js",
         "resize-branches-dialog.js",
-        "resize-schedule-dialog.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://mow-delivery-calculator.dns-shop.ru/configurator/tariffs",
-        "https://mow-delivery-calculator.dns-shop.ru/configurator/tariffs/",
-        "https://mow-delivery-calculator.dns-shop.ru/configurator/tariffs/*"
-      ],
-      "js": [
+        "resize-schedule-dialog.js",
         "plugin-core.js",          
         "xlsx.full.min.js",
         "tariff-customizer.js",
@@ -50,15 +35,7 @@
         "tariff-creator.js",
         "tariff-renamer.js",
         "tariff-tools-content.js",
-        "pvz-tariff-creator.js"     
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://mow-delivery-calculator.dns-shop.ru/configurator/tariffs/*/*"
-      ],
-      "js": [
+        "pvz-tariff-creator.js",
         "tariff-page-collector.js"
       ],
       "run_at": "document_idle"

@@ -30,6 +30,14 @@
             this.checkAndAddButtons();
             this.observeForTariffs();
             
+            // Реагируем на смену URL внутри SPA
+            window.addEventListener('spa-route-changed', () => {
+                setTimeout(() => {
+                    this.checkAndAddButtons();
+                    this.observeForTariffs();
+                }, 500); 
+            });
+
             window.addEventListener('storage', (e) => {
                 if (e.key === 'tariff_export_state') {
                     this.restoreFromStorage();

@@ -144,3 +144,53 @@ window.TariffToolsCore = {
 };
 
 console.log('[plugin-core] Загружен с поддержкой ПВЗ');
+
+// ==================== SPA ROUTER OBSERVER ====================
+// Отслеживает смену URL в Single Page Application без перезагрузки страницы
+(function initSPARouter() {
+  let lastUrl = location.href;
+  
+  const observer = new MutationObserver(() => {
+    const currentUrl = location.href;
+    if (currentUrl !== lastUrl) {
+      lastUrl = currentUrl;
+      console.log('[plugin-core] SPA маршрут изменился:', currentUrl);
+      // Генерируем кастомное событие, чтобы другие скрипты могли на него реагировать
+      window.dispatchEvent(new CustomEvent('spa-route-changed', { detail: currentUrl }));
+    }
+  });
+
+  const startObserving = () => observer.observe(document.body, { childList: true, subtree: true });
+  
+  if (document.body) {
+    startObserving();
+  } else {
+    window.addEventListener('DOMContentLoaded', startObserving, { once: true });
+  }
+})();
+
+// ==================== UI TWEAKS OBSERVER ====================
+// Заменяет длинные тексты интерфейса на компактные аббревиатуры
+(function initUITweaks() {
+  const observer = new MutationObserver(() => {
+    // Ищем элементы бейджей (по тем же классам, что мы использовали для ПВЗ)
+    const badges = document.querySelectorAll('[class*="_badge_"], [class*="badge"]');
+    
+    for (const badge of badges) {
+      // Проверяем точное совпадение, чтобы случайно не сломать другие бейджи
+      if (badge.textContent && badge.textContent.trim() === 'Курьерская доставка') {
+        badge.textContent = 'КД';
+        badge.title = 'Курьерская доставка'; // Оставляем полное название при наведении мышкой
+      }
+    }
+  });
+
+  // Запускаем слежение за всем документом
+  const startObserving = () => observer.observe(document.body, { childList: true, subtree: true });
+  
+  if (document.body) {
+    startObserving();
+  } else {
+    window.addEventListener('DOMContentLoaded', startObserving, { once: true });
+  }
+})();

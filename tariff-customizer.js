@@ -243,28 +243,6 @@
 
             if (!card.querySelector('.tariff-pin-btn')) this.createPinButton(card, id);
             if (!card.querySelector('.tariff-drag-handle')) this.createDragHandle(card, id);
-            
-            // Сокращаем надпись "Курьерская доставка" до "КД" во всех бейджах карточки
-            this.shortenDeliveryBadges(card);
-        }
-
-        shortenDeliveryBadges(card) {
-            if (!card) return;
-            
-            // Находим все span-элементы внутри переданной карточки тарифа
-            const spans = card.querySelectorAll('span');
-            spans.forEach(span => {
-                const text = span.textContent.trim();
-                // Проверяем точное совпадение с полной надписью "Курьерская доставка"
-                if (text === 'Курьерская доставка') {
-                    // Заменяем текст на сокращённую версию "КД"
-                    span.textContent = 'КД';
-                    // Сохраняем оригинальное название в атрибуте title для всплывающей подсказки при наведении мыши
-                    span.title = 'Курьерская доставка';
-                    // Устанавливаем data-атрибут для возможной идентификации изменённых элементов
-                    span.dataset.deliveryShortened = 'true';
-                }
-            });
         }
 
         sortAllColumns(layout) {
