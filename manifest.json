@@ -1,13 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Tariff Tools Suite",
-  "version": "2.0.2",
+  "version": "2.0.8",
   "description": "Экспорт, массовое создание, импорт и инструменты редактирования тарифов.",
   "permissions": [
     "activeTab",
     "scripting",
-    "storage"
+    "storage",
+    "tabs"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "host_permissions": [
     "https://mow-delivery-calculator.dns-shop.ru/*"
   ],
@@ -23,17 +27,20 @@
       "css": ["content.css"],
       "js": [
         "resize-core.js",
+        "plugin-core.js",
+        "page-inspector.js",
         "autofill-content.js",
         "resize-dialog.js",
         "resize-intervals-dialog.js",
         "resize-branches-dialog.js",
         "resize-schedule-dialog.js",
-        "plugin-core.js",          
+        "resize-extra-dialogs.js",
         "xlsx.full.min.js",
         "tariff-customizer.js",
         "tariff-updater.js",
         "tariff-creator.js",
         "tariff-renamer.js",
+        "tariff-manager.js",
         "tariff-tools-content.js",
         "pvz-tariff-creator.js",
         "tariff-page-collector.js"

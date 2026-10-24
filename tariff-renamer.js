@@ -189,6 +189,9 @@
         }
 
         createBaseSidebar(id, title, subtitle, accent) {
+            if (window.TariffToolsCore && typeof window.TariffToolsCore.closeAllSidebars === 'function') {
+                window.TariffToolsCore.closeAllSidebars();
+            }
             if (this.sidebar) this.sidebar.remove();
             
             this.sidebar = document.createElement('div');
@@ -623,7 +626,11 @@
 
         downloadTemplate() {
             try {
-                const cards = Array.from(document.querySelectorAll('.css-nr5n4g'));
+                let cards = Array.from(document.querySelectorAll('.css-nr5n4g, .e1wi2kqa9, .css-15ttl8p'));
+                if (cards.length === 0) {
+                    const mainColumn = document.querySelector('.main-column, .tariff-layout');
+                    if (mainColumn) cards = Array.from(mainColumn.querySelectorAll('.css-nr5n4g, .e1wi2kqa9, .css-15ttl8p'));
+                }
                 const data = [['Текущее название тарифа', 'Новое название тарифа']];
 
                 cards.forEach(card => {

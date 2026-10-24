@@ -3,9 +3,13 @@
     'use strict';
     console.log('📏 resize-branches-dialog.js loaded (del-orgs fixed)');
 
-    const PAGE_OK = window.location.pathname.includes('/configurator/del-orgs');
+    function isPageOk() {
+        if (window.location.pathname.includes('/tariffs')) return false;
+        return window.location.pathname.includes('/configurator/');
+    }
+
     const DIALOG_ID = 'select-branches-dlg';
-    const TITLE_MATCHES = ['филиал обслуживания', 'филиал', 'обслуживания'];
+    const TITLE_MATCHES = ['филиал обслуживания', 'филиалы обслуживания', 'филиал', 'обслуживания'];
 
     function getResponsiveHeight() {
         const screenHeight = window.innerHeight || 900;
@@ -66,7 +70,7 @@
     }
 
     function applyResize(dialog) {
-        if (!PAGE_OK) return false;
+        if (!isPageOk()) return false;
         if (!dialog || !isVisible(dialog)) return false;
 
         const mainContainer = findMainContainer(dialog);
@@ -105,6 +109,8 @@
     }
 
     function process() {
+        if (window.__disableResizeObservers) return;
+        if (!isPageOk()) return;
         const dialog = findDialog();
         if (!dialog) return;
         if (dialog.hasAttribute('data-branches-resized')) return;
@@ -119,6 +125,11 @@
 
     const observer = new MutationObserver(process);
     if (document.body) observer.observe(document.body, { childList: true, subtree: true });
+    
+    window.addEventListener('spa-route-changed', () => {
+        setTimeout(process, 400);
+    });
+
     setTimeout(process, 800);
     setTimeout(process, 1500);
 })();

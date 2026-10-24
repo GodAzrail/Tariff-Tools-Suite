@@ -1,4 +1,6 @@
 // pvz-tariff-creator.js
+(function() {
+'use strict';
 console.log('[pvz-tariff-creator] Загружен с интерфейсом предзагрузки, умным наблюдателем и ценой возврата');
 
 class PVZTariffCreator {
@@ -65,6 +67,9 @@ class PVZTariffCreator {
 
     // === Открытие начального меню ===
     openMenu() {
+        if (window.TariffToolsCore && typeof window.TariffToolsCore.closeAllSidebars === 'function') {
+            window.TariffToolsCore.closeAllSidebars();
+        }
         if (this.isCreating) {
             this.createProgressSidebar();
             this.updateSidebarDisplay();
@@ -240,6 +245,13 @@ class PVZTariffCreator {
             this.addLog(`⏰ Отсечка: ${cutoffInput.value}`, 'success');
         }
 
+        const costLimitInput = document.querySelector('input[placeholder*="Стоимость заказа"]');
+        if (costLimitInput && tariff.costLimit) {
+            costLimitInput.value = tariff.costLimit;
+            costLimitInput.dispatchEvent(new Event('input', {bubbles: true}));
+            this.addLog(`💰 Лимит стоимости: ${costLimitInput.value}`, 'success');
+        }
+
         await this.fillMgxGrid(tariff.mgxRows);
     }
 
@@ -318,30 +330,52 @@ class PVZTariffCreator {
     async fillMgxGrid(mgxRows) {
         if (!mgxRows || mgxRows.length === 0) return;
         const pencil = this.findPencilIcon('МГХ сетка');
-        if (!pencil) return this.addLog('⚠️ Иконка МГХ не найдена', 'warning');
+        if (!pencil) {
+            this.addLog('⚠️ Иконка МГХ не найдена', 'warning');
+            throw new Error('Иконка МГХ сетки не найдена');
+        }
         pencil.click();
         await this.delay(800);
-        const dialog = document.querySelector('dialog[open]');
-        if (!dialog) return;
-
-        const bulkInternal = dialog.querySelector('#af-bulk0');
-        const bulkCustomer = dialog.querySelector('#af-bulk1');
-        const bulkReturn = dialog.querySelector('#af-bulk2'); 
-
-        if (bulkInternal && bulkCustomer) {
-            bulkInternal.value = mgxRows.map(r => r.internal).join('\n');
-            bulkCustomer.value = mgxRows.map(r => r.customer).join('\n');
-            bulkInternal.dispatchEvent(new Event('input', {bubbles: true}));
-            bulkCustomer.dispatchEvent(new Event('input', {bubbles: true}));
-
-            if (bulkReturn) {
-                bulkReturn.value = mgxRows.map(r => r.returnPrice).join('\n');
-                bulkReturn.dispatchEvent(new Event('input', {bubbles: true}));
-            }
-
-            const transferBtn = dialog.querySelector('#af-transfer-all');
-            if (transferBtn) transferBtn.click();
+        let dialog = document.querySelector('dialog[open]');
+        for (let attempt = 0; attempt < 20 && !dialog; attempt++) {
+            await this.delay(200);
+            dialog = document.querySelector('dialog[open]');
         }
+        if (!dialog) {
+            this.addLog('❌ Диалог МГХ не открылся', 'error');
+            throw new Error('Диалог МГХ сетки не открылся');
+        }
+
+        let bulkInternal = null;
+        let bulkCustomer = null;
+        let bulkReturn = null;
+        let transferBtn = null;
+
+        for (let attempt = 0; attempt < 30; attempt++) {
+            bulkInternal = dialog.querySelector('#af-bulk0');
+            bulkCustomer = dialog.querySelector('#af-bulk1');
+            bulkReturn = dialog.querySelector('#af-bulk2');
+            transferBtn = dialog.querySelector('#af-transfer-all');
+            if (bulkInternal && bulkCustomer && transferBtn) break;
+            await this.delay(200);
+        }
+
+        if (!bulkInternal || !bulkCustomer || !transferBtn) {
+            this.addLog('❌ Панель автозаполнения цен МГХ (#af-bulk) не появилась', 'error');
+            throw new Error('Панель цен МГХ не появилась в диалоге');
+        }
+
+        bulkInternal.value = mgxRows.map(r => r.internal).join('\n');
+        bulkCustomer.value = mgxRows.map(r => r.customer).join('\n');
+        bulkInternal.dispatchEvent(new Event('input', { bubbles: true }));
+        bulkCustomer.dispatchEvent(new Event('input', { bubbles: true }));
+
+        if (bulkReturn) {
+            bulkReturn.value = mgxRows.map(r => r.returnPrice).join('\n');
+            bulkReturn.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+
+        transferBtn.click();
         await this.delay(800);
         await this.clickDialogSaveButton(dialog);
         this.addLog(`📊 МГХ заполнена (${mgxRows.length} строк)`, 'success');
@@ -410,6 +444,7 @@ class PVZTariffCreator {
                     branches: String(get(row, 'Филиалы', 2)).split(';').map(b => b.trim()).filter(Boolean),
                     deliveryDays: get(row, 'Количество дней доставки', -1),
                     cutoffTime: get(row, 'Отсечка оформления заказа', -1),
+                    costLimit: get(row, 'Лимит стоимости заказа, руб', -1) || get(row, 'Лимит стоимости', -1) || '',
                     mgxRows: []
                 };
                 this.tariffsToCreate.push(t);
@@ -571,3 +606,4 @@ class PVZTariffCreator {
 window.pvzTariffCreator = new PVZTariffCreator();
 
 window.openPVZTariffCreator = () => window.pvzTariffCreator.openMenu();
+})();

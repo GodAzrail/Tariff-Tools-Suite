@@ -63,6 +63,19 @@
             if (this.formCheckInterval) clearInterval(this.formCheckInterval);
             this.formCheckInterval = setInterval(() => {
                 if (!this.isImporting || this.importStarted) return;
+
+                const typeDialog = document.querySelector('dialog[open], [role="dialog"]');
+                if (typeDialog && (typeDialog.textContent || '').includes('тип тарифа')) {
+                    const courierBtn = Array.from(typeDialog.querySelectorAll('button')).find(btn => {
+                        const t = (btn.textContent || '').trim().toLowerCase();
+                        return t.includes('курьер') || (t.includes('доставка') && !t.includes('пвз'));
+                    });
+                    if (courierBtn) {
+                        courierBtn.click();
+                        console.log('[TariffCreatorPro] ✅ Нажата кнопка типа «Курьерская доставка»');
+                    }
+                }
+
                 if (this.isCreatePage()) {
                     console.log('[TariffCreatorPro] 🎉 Обнаружена форма создания тарифа');
                     this.importStarted = true;
@@ -182,13 +195,25 @@
         }
 
         closeOtherSidebars() {
-            const sidebarIds = ['tariff-export-sidebar', 'tariff-create-config-sidebar', 'tariff-create-progress-sidebar', 'tariff-update-config-sidebar', 'tariff-update-sidebar'];
+            const sidebarIds = [
+                'tariff-export-sidebar',
+                'tariff-create-config-sidebar',
+                'tariff-create-progress-sidebar',
+                'tariff-update-config-sidebar',
+                'tariff-update-sidebar',
+                'pvz-creator-sidebar',
+                'tariff-rename-config-sidebar',
+                'tariff-rename-progress-sidebar'
+            ];
             sidebarIds.forEach(id => {
                 if (!this.sidebar || id !== this.sidebar.id) {
                     const el = document.getElementById(id);
                     if (el) el.style.display = 'none';
                 }
             });
+            if (window.TariffToolsCore?.closeAllSidebars) {
+                // Keep current sidebar visible if needed
+            }
         }
 
         showConfigSidebar() {
@@ -630,6 +655,18 @@
                 if (createBtn) {
                     createBtn.click();
                     this.addSidebarLog('🖱️ Нажата кнопка «Создать» на текущей странице тарифов', 'info');
+                    await this.delay(600);
+                    const typeDialog = document.querySelector('dialog[open], [role="dialog"]');
+                    if (typeDialog && (typeDialog.textContent || '').includes('тип тарифа')) {
+                        const courierBtn = Array.from(typeDialog.querySelectorAll('button')).find(btn => {
+                            const t = (btn.textContent || '').trim().toLowerCase();
+                            return t.includes('курьер') || (t.includes('доставка') && !t.includes('пвз'));
+                        });
+                        if (courierBtn) {
+                            courierBtn.click();
+                            this.addSidebarLog('✅ Выбран тип тарифа «Курьерская доставка»', 'info');
+                        }
+                    }
                     return;
                 }
 
@@ -883,8 +920,50 @@
         }
 
         findSaleTypeCheckbox(labelText, idPart) {
-            const roots = [document.querySelector('form'), document.body].filter(Boolean);
+            const saleSection = Array.from(document.querySelectorAll('div, section, fieldset, form'))
+                .find(el => {
+                    const txt = (el.textContent || '').toLowerCase();
+                    return (txt.includes('вид продажи') || txt.includes('допустимый к оформлению')) &&
+                           (txt.includes('сервис') || txt.includes('исправн') || txt.includes('уцен') || txt.includes('юр'));
+                });
+
+            const roots = [saleSection, document.querySelector('form'), document.body].filter(Boolean);
+
+            const keywordsMap = {
+                service: ['сервис', 'сервисный'],
+                product: ['исправн', 'исправный'],
+                markdown: ['уцен', 'уцененный'],
+                legal: ['юр', 'юрид']
+            };
+            const keywords = keywordsMap[idPart] || [labelText.toLowerCase()];
+
             for (const root of roots) {
+                const candidates = Array.from(root.querySelectorAll('label, div, span, p, tr, td'));
+                for (const el of candidates) {
+                    const directText = Array.from(el.childNodes)
+                        .filter(n => n.nodeType === Node.TEXT_NODE)
+                        .map(n => n.textContent)
+                        .join(' ')
+                        .toLowerCase();
+                    const fullText = (el.textContent || '').trim().toLowerCase();
+
+                    if (keywords.some(kw => directText.includes(kw) || (fullText.includes(kw) && fullText.length < 50))) {
+                        if (el.tagName === 'INPUT' && el.type === 'checkbox') return el;
+                        const innerCb = el.querySelector('input[type="checkbox"], [role="checkbox"]');
+                        if (innerCb) return innerCb;
+                        const forId = el.getAttribute?.('for') || el.closest('label')?.getAttribute?.('for');
+                        if (forId) {
+                            const forEl = document.getElementById(forId);
+                            if (forEl) return forEl;
+                        }
+                        const label = el.closest('label');
+                        if (label) {
+                            const cbInLabel = label.querySelector('input[type="checkbox"], [role="checkbox"]');
+                            if (cbInLabel) return cbInLabel;
+                        }
+                    }
+                }
+
                 const cb = this.findCheckboxByText(root, labelText);
                 if (cb) return cb;
             }
@@ -897,27 +976,74 @@
             if (target.getAttribute) {
                 const aria = target.getAttribute('aria-checked');
                 if (aria === 'true') return true;
+                if (aria === 'false') return false;
             }
             return !!target.querySelector?.('input[type="checkbox"]')?.checked;
         }
 
         triggerSaleTypeClick(target) {
             if (!target) return false;
+            const input = target.tagName === 'INPUT' ? target : target.querySelector?.('input[type="checkbox"]');
+            if (input && typeof input.click === 'function') {
+                input.click();
+                return true;
+            }
+            if (typeof target.click === 'function') {
+                target.click();
+                return true;
+            }
             const clickable = target.closest?.('label, [role="checkbox"], button') || target;
+            if (typeof clickable.click === 'function') {
+                clickable.click();
+                return true;
+            }
             clickable.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
             return true;
         }
 
         async setSaleTypeCheckbox(labelText, idPart, expectedState) {
             if (expectedState === undefined) return false;
-            for (let attempt = 0; attempt < 5; attempt++) {
+            for (let attempt = 0; attempt < 6; attempt++) {
                 const target = this.findSaleTypeCheckbox(labelText, idPart);
-                if (!target) { await this.delay(150); continue; }
-                const before = this.isSaleTypeChecked(target);
+                if (!target) { await this.delay(180); continue; }
+                const inputEl = target.tagName === 'INPUT' ? target : (target.querySelector?.('input[type="checkbox"], [role="checkbox"]') || target);
+                const before = this.isSaleTypeChecked(inputEl);
                 if (before === expectedState) return true;
-                this.triggerSaleTypeClick(target);
+
+                // 1. Direct input click
+                if (typeof inputEl.click === 'function') {
+                    inputEl.click();
+                } else if (typeof target.click === 'function') {
+                    target.click();
+                }
+
+                await this.delay(150);
+                if (this.isSaleTypeChecked(inputEl) === expectedState) return true;
+
+                // 2. Click wrapper/label
+                const label = inputEl.closest?.('label') || target.closest?.('label') || (inputEl.id ? document.querySelector(`label[for="${inputEl.id}"]`) : null);
+                if (label && typeof label.click === 'function') {
+                    label.click();
+                }
+
+                await this.delay(150);
+                if (this.isSaleTypeChecked(inputEl) === expectedState) return true;
+
+                // 3. React descriptor setter + dispatch
+                if (inputEl.tagName === 'INPUT' && inputEl.type === 'checkbox') {
+                    const inputProto = window.HTMLInputElement.prototype;
+                    const checkedDescriptor = Object.getOwnPropertyDescriptor(inputProto, 'checked');
+                    if (checkedDescriptor && checkedDescriptor.set) {
+                        checkedDescriptor.set.call(inputEl, expectedState);
+                    } else {
+                        inputEl.checked = expectedState;
+                    }
+                    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
                 await this.delay(200);
-                const refreshed = this.findSaleTypeCheckbox(labelText, idPart) || target;
+                const refreshed = this.findSaleTypeCheckbox(labelText, idPart) || inputEl;
                 if (this.isSaleTypeChecked(refreshed) === expectedState) return true;
             }
             return false;
@@ -1031,9 +1157,24 @@
             }
             if (!dialog) return false;
 
-            const bulkInternal = dialog.querySelector('#af-bulk0');
-            const bulkCustomer = dialog.querySelector('#af-bulk1');
-            const bulkReturn = dialog.querySelector('#af-bulk2');
+            let bulkInternal = null;
+            let bulkCustomer = null;
+            let bulkReturn = null;
+            let transferBtn = null;
+
+            for (let wait = 0; wait < 30; wait++) {
+                bulkInternal = dialog.querySelector('#af-bulk0');
+                bulkCustomer = dialog.querySelector('#af-bulk1');
+                bulkReturn = dialog.querySelector('#af-bulk2');
+                transferBtn = dialog.querySelector('#af-transfer-all');
+                if (bulkInternal && bulkCustomer && transferBtn) break;
+                await this.delay(200);
+            }
+
+            if (!bulkInternal || !bulkCustomer) {
+                this.addSidebarLog('❌ Панель автозаполнения цен МГХ (#af-bulk) не появилась вовремя', 'error');
+                return false;
+            }
 
             if (bulkInternal && bulkCustomer) {
                 const internalValues = mgxRows.map(r => r.internal).filter(v => v);
@@ -1101,7 +1242,10 @@
             }
             if (!dialog) return false;
 
-            const normalizeTime = (value) => String(value || '').trim().slice(0, 5);
+            const normalizeTime = (value) => {
+                const m = String(value || '').match(/\d{1,2}:\d{2}/);
+                return m ? m[0] : String(value || '').trim().slice(0, 5);
+            };
             const rows = dialog.querySelectorAll('tbody tr');
             rows.forEach(row => {
                 const start = normalizeTime(row.querySelector('[test-id="startTime"] span')?.textContent);

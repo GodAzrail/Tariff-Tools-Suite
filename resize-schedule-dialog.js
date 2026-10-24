@@ -1,10 +1,13 @@
 // resize-schedule-dialog.js - Автоматическое увеличение высоты диалогового окна графика работы
+(function() {
+'use strict';
 console.log('📏 Модуль автоматического увеличения высоты окна графика работы загружен (v5 FIXED - no recursion loop)');
 
 let isUpdating = false;
 let isApplyingChanges = false; // НОВЫЙ ФЛАГ для предотвращения рекурсии
 let appliedStyles = false;
-let debugMode = true;
+let debugMode = false;
+window.setScheduleDebug = function(val) { debugMode = !!val; console.log('[ScheduleDialog] debugMode set to', debugMode); };
 let toggleObserver = null;
 let toggleUpdateTimeout = null;
 let tableObserver = null;
@@ -29,6 +32,7 @@ function logDebug(message, data = null) {
 }
 
 function getScheduleDialog() {
+    if (window.location.pathname.includes('/tariffs')) return null;
     return document.getElementById('select-schedule-dlg');
 }
 
@@ -1793,3 +1797,4 @@ window.refreshScheduleEnhancements = function() {
 };
 
 console.log('✅ Установлены команды: setAllCheckboxes(true/false) для массовой установки');
+})();

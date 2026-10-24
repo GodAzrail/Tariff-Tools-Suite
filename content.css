@@ -177,7 +177,10 @@
 
 /* === Группа из 2 рядов: actionRow + extraRow === */
 .tariff-pro-rows-group {
-  display: block !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  gap: 10px !important;
   width: fit-content !important;
   margin-left: auto !important;
   margin-right: 0 !important;
@@ -185,10 +188,23 @@
   box-sizing: border-box !important;
 }
 
+.tariff-pro-rows-group > *:first-child {
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  width: fit-content !important;
+  margin-left: auto !important;
+  margin-right: 0 !important;
+}
+
 .tariff-pro-extra-actions-row {
-  display: block !important;
-  width: 100% !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  width: fit-content !important;
   margin-top: 10px !important;
+  margin-left: auto !important;
+  margin-right: 0 !important;
   padding: 0 !important;
   box-sizing: border-box !important;
 }
@@ -199,9 +215,10 @@
   flex-wrap: wrap !important;
   align-items: center !important;
   justify-content: flex-end !important;
-  gap: 12px !important;
+  gap: 8px !important;
   width: fit-content !important;
   margin-left: auto !important;
+  margin-right: 0 !important;
   padding: 0 !important;
   box-sizing: border-box !important;
 }

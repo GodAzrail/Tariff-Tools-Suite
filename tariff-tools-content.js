@@ -62,20 +62,46 @@
             style.id = 'tariff-pro-custom-styles';
             style.textContent = `
                 .tariff-pro-rows-group {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 10px;
-                    width: 100%;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    align-items: flex-end !important;
+                    gap: 10px !important;
+                    width: fit-content !important;
+                    margin-left: auto !important;
+                    margin-right: 0 !important;
+                    padding: 0 !important;
+                    box-sizing: border-box !important;
+                }
+                .tariff-pro-rows-group > *:first-child {
+                    display: flex !important;
+                    justify-content: flex-end !important;
+                    align-items: center !important;
+                    width: fit-content !important;
+                    margin-left: auto !important;
+                    margin-right: 0 !important;
                 }
                 .tariff-pro-extra-actions-row {
-                    display: flex;
-                    justify-content: flex-end;
-                    width: 100%;
+                    display: flex !important;
+                    justify-content: flex-end !important;
+                    align-items: center !important;
+                    width: fit-content !important;
+                    margin-left: auto !important;
+                    margin-right: 0 !important;
+                    padding: 0 !important;
+                    box-sizing: border-box !important;
                 }
                 .tariff-pro-extra-actions-inner {
-                    display: flex;
-                    gap: 8px;
-                    flex-wrap: wrap;
+                    display: flex !important;
+                    flex-direction: row !important;
+                    flex-wrap: wrap !important;
+                    align-items: center !important;
+                    justify-content: flex-end !important;
+                    gap: 8px !important;
+                    width: fit-content !important;
+                    margin-left: auto !important;
+                    margin-right: 0 !important;
+                    padding: 0 !important;
+                    box-sizing: border-box !important;
                 }
                 .tariff-pro-btn {
                     color: #ffffff !important;
@@ -110,6 +136,7 @@
                     box-shadow: none !important;
                 }
                 /* Строгие корпоративные цвета */
+                .btn-pro-manager { background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%) !important; box-shadow: 0 2px 6px rgba(99, 102, 241, 0.4) !important; }
                 .btn-pro-pvz { background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%) !important; }
                 .btn-pro-create { background: linear-gradient(180deg, #10b981 0%, #059669 100%) !important; }
                 .btn-pro-rename { background: linear-gradient(180deg, #8b5cf6 0%, #7c3aed 100%) !important; }
@@ -196,6 +223,10 @@
         }
         
         checkAndAddButtons() {
+            if (window.__tariffCleanDOMMode) {
+                this.removeNavigationButtons();
+                return;
+            }
             if (this.shouldShowNavigationButtons()) {
                 this.addNavigationButtons();
             } else {
@@ -204,10 +235,10 @@
         }
         
         checkTariffsExist() {
-            let cards = Array.from(document.querySelectorAll('.css-nr5n4g'));
+            let cards = Array.from(document.querySelectorAll('.css-nr5n4g, .e1wi2kqa9, .css-15ttl8p'));
             if (cards.length === 0) {
-                const mainColumn = document.querySelector('.main-column');
-                if (mainColumn) cards = Array.from(mainColumn.querySelectorAll('.css-nr5n4g'));
+                const mainColumn = document.querySelector('.main-column, .tariff-layout');
+                if (mainColumn) cards = Array.from(mainColumn.querySelectorAll('.css-nr5n4g, .e1wi2kqa9, .css-15ttl8p'));
             }
             return cards.length > 0;
         }
@@ -258,7 +289,8 @@
         addNavigationButtons() {
             this.injectProStyles();
 
-            if (document.querySelector('#tariff-export-pro-nav-btn') && 
+            if (document.querySelector('#tariff-manager-pro-nav-btn') &&
+                document.querySelector('#tariff-export-pro-nav-btn') && 
                 document.querySelector('#tariff-create-pro-nav-btn') &&
                 document.querySelector('#tariff-import-pro-nav-btn') &&
                 document.querySelector('#tariff-rename-pro-nav-btn') &&
@@ -284,17 +316,44 @@
             if (!rowsGroup) {
                 rowsGroup = document.createElement('div');
                 rowsGroup.className = 'tariff-pro-rows-group';
+                rowsGroup.style.display = 'flex';
+                rowsGroup.style.flexDirection = 'column';
+                rowsGroup.style.alignItems = 'flex-end';
+                rowsGroup.style.marginLeft = 'auto';
+                rowsGroup.style.marginRight = '0';
+                rowsGroup.style.width = 'fit-content';
+
                 hostContainer.insertBefore(rowsGroup, actionRow);
                 rowsGroup.appendChild(actionRow);
             }
+
+            // Прижимаем верхнюю штатную строку к правому краю, чтобы она не сдвигалась влево
+            actionRow.style.marginLeft = 'auto';
+            actionRow.style.marginRight = '0';
+            actionRow.style.width = 'fit-content';
+            actionRow.style.display = 'flex';
+            actionRow.style.justifyContent = 'flex-end';
+            actionRow.style.alignItems = 'center';
 
             let extraRow = rowsGroup.querySelector(':scope > .tariff-pro-extra-actions-row');
             if (!extraRow) {
                 extraRow = document.createElement('div');
                 extraRow.className = 'tariff-pro-extra-actions-row';
+                extraRow.style.display = 'flex';
+                extraRow.style.justifyContent = 'flex-end';
+                extraRow.style.alignItems = 'center';
+                extraRow.style.marginLeft = 'auto';
+                extraRow.style.marginRight = '0';
+                extraRow.style.width = 'fit-content';
 
                 const innerRow = document.createElement('div');
                 innerRow.className = 'tariff-pro-extra-actions-inner';
+                innerRow.style.display = 'flex';
+                innerRow.style.justifyContent = 'flex-end';
+                innerRow.style.alignItems = 'center';
+                innerRow.style.marginLeft = 'auto';
+                innerRow.style.marginRight = '0';
+                innerRow.style.width = 'fit-content';
                 extraRow.appendChild(innerRow);
 
                 rowsGroup.appendChild(extraRow);
@@ -304,6 +363,7 @@
 
             const createProButton = (id, text, colorClass, onClickAction) => {
                 const btn = document.createElement('button');
+                btn.type = 'button';
                 btn.id = id;
                 btn.className = `${standardClasses.classes} ${colorClass}`;
                 
@@ -313,11 +373,20 @@
                 innerDiv.appendChild(span);
                 btn.appendChild(innerDiv);
                 
-                btn.onclick = onClickAction;
+                btn.onclick = (e) => {
+                    if (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }
+                    onClickAction(e);
+                };
                 targetContainer.appendChild(btn);
                 return btn;
             };
 
+            this.managerButton = createProButton('tariff-manager-pro-nav-btn', 'Управление тарифами', 'btn-pro-manager', () => {
+                if (window.tariffManager) window.tariffManager.open();
+            });
             this.pvzCreateButton = createProButton('tariff-pvz-create-pro-nav-btn', 'Массовое ПВЗ', 'btn-pro-pvz', () => this.showPvzSidebar());
             this.importButton = createProButton('tariff-create-pro-nav-btn', 'Массовое Доставка', 'btn-pro-create', () => this.showImportSidebar());
             this.renameButton = createProButton('tariff-rename-pro-nav-btn', 'Переименовать', 'btn-pro-rename', () => this.showRenameSidebar());
@@ -342,6 +411,7 @@
                     
                     const createProButton = (id, text, colorClass, onClickAction) => {
                         const btn = document.createElement('button');
+                        btn.type = 'button';
                         btn.id = id;
                         btn.className = `${standardClasses.classes} ${colorClass}`;
                         
@@ -351,10 +421,19 @@
                         innerDiv.appendChild(span);
                         btn.appendChild(innerDiv);
                         
-                        btn.onclick = onClickAction;
+                        btn.onclick = (e) => {
+                            if (e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                            }
+                            onClickAction(e);
+                        };
                         return btn;
                     };
 
+                    this.managerButton = createProButton('tariff-manager-pro-nav-btn', 'Управление тарифами', 'btn-pro-manager', () => {
+                        if (window.tariffManager) window.tariffManager.open();
+                    });
                     this.pvzCreateButton = createProButton('tariff-pvz-create-pro-nav-btn', 'Массовое ПВЗ', 'btn-pro-pvz', () => this.showPvzSidebar());
                     this.importButton = createProButton('tariff-create-pro-nav-btn', 'Массовое Доставка', 'btn-pro-create', () => this.showImportSidebar());
                     this.renameButton = createProButton('tariff-rename-pro-nav-btn', 'Переименование', 'btn-pro-rename', () => this.showRenameSidebar());
@@ -366,12 +445,17 @@
                     div.insertBefore(this.renameButton, div.firstChild);
                     div.insertBefore(this.importButton, div.firstChild);
                     div.insertBefore(this.pvzCreateButton, div.firstChild);
+                    div.insertBefore(this.managerButton, div.firstChild);
                     return;
                 }
             }
         }
         
         removeNavigationButtons() {
+            if (this.managerButton && this.managerButton.parentNode) {
+                this.managerButton.remove();
+                this.managerButton = null;
+            }
             if (this.navButton && this.navButton.parentNode) {
                 this.navButton.remove();
                 this.navButton = null;
@@ -388,6 +472,8 @@
                 this.renameButton = null;
             }
             this.updateButton = null;
+            const existingManagerBtn = document.querySelector('#tariff-manager-pro-nav-btn');
+            if (existingManagerBtn) existingManagerBtn.remove();
             const existingExportBtn = document.querySelector('#tariff-export-pro-nav-btn');
             if (existingExportBtn) existingExportBtn.remove();
             const existingCreateBtn = document.querySelector('#tariff-create-pro-nav-btn');
@@ -398,6 +484,24 @@
             if (existingRenameBtn) existingRenameBtn.remove();
             const existingPvzBtn = document.querySelector('#tariff-pvz-create-pro-nav-btn');
             if (existingPvzBtn) existingPvzBtn.remove();
+
+            const extraRow = document.querySelector('.tariff-pro-extra-actions-row');
+            if (extraRow) extraRow.remove();
+
+            const rowsGroup = document.querySelector('.tariff-pro-rows-group');
+            if (rowsGroup && rowsGroup.parentNode) {
+                const actionRow = rowsGroup.firstElementChild;
+                if (actionRow) {
+                    rowsGroup.parentNode.insertBefore(actionRow, rowsGroup);
+                    actionRow.style.marginLeft = '';
+                    actionRow.style.marginRight = '';
+                    actionRow.style.width = '';
+                    actionRow.style.display = '';
+                    actionRow.style.justifyContent = '';
+                    actionRow.style.alignItems = '';
+                }
+                rowsGroup.remove();
+            }
         }
 
         showPvzSidebar() {
@@ -545,6 +649,9 @@
         }
 
         createBaseSidebar() {
+            if (window.TariffToolsCore && typeof window.TariffToolsCore.closeAllSidebars === 'function') {
+                window.TariffToolsCore.closeAllSidebars();
+            }
             if (this.sidebar) this.sidebar.remove();
             this.sidebar = document.createElement('div');
             this.sidebar.id = 'tariff-export-sidebar';
@@ -796,6 +903,8 @@
         handleStopSignal() {
             this.shouldStop = true;
             this.isExporting = false;
+            window.__tariffExportPauseCustomizer = false;
+            localStorage.removeItem('tariff_export_pause_customizer');
             this.addSidebarLog('⏹️ Экспорт остановлен из другой вкладки', 'warning');
             this.updateSidebarStatus('⏹️ Остановлен', 'Экспорт прерван');
             this.saveStateToStorage();
@@ -814,6 +923,8 @@
             
             this.isExporting = true;
             this.shouldStop = false;
+            window.__tariffExportPauseCustomizer = true;
+            localStorage.setItem('tariff_export_pause_customizer', '1');
             this.tariffsData = [];
             this.tariffsList = [];
             this.logEntries = [];
@@ -866,7 +977,7 @@
                     this.updateSidebarDisplay();
                     this.addSidebarLog(`🔍 Получение UUID: ${name.substring(0, 35)}...`, 'info');
                     
-                    const uuid = await this.getUuidFromCard(titleElement, name);
+                    const uuid = await this.getUuidFromCard(card, titleElement, name);
                     
                     if (this.shouldStop) throw new Error('Экспорт остановлен');
                     
@@ -905,7 +1016,7 @@
                     this.updateSidebarDisplay();
                     this.addSidebarLog(`📥 Сбор данных: ${tariff.name.substring(0, 35)}...`, 'info');
                     
-                    const tariffUrl = `${this.baseUrl}/${tariff.uuid}`;
+                    const tariffUrl = this.getTariffUrl(tariff.uuid);
                     const collectedData = await this.openAndCollect(tariffUrl, tariff.name);
                     
                     if (this.shouldStop) throw new Error('Экспорт остановлен');
@@ -948,6 +1059,8 @@
                 }
             } finally {
                 this.isExporting = false;
+                window.__tariffExportPauseCustomizer = false;
+                localStorage.removeItem('tariff_export_pause_customizer');
                 this.saveStateToStorage();
                 
                 this.updateSidebarDisplay();
@@ -978,6 +1091,8 @@
         stopExport() {
             this.shouldStop = true;
             this.isExporting = false;
+            window.__tariffExportPauseCustomizer = false;
+            localStorage.removeItem('tariff_export_pause_customizer');
             this.addSidebarLog('⏹️ Экспорт остановлен пользователем', 'warning');
             this.updateSidebarStatus('⏹️ Остановлен', 'Экспорт прерван пользователем');
             this.saveStateToStorage();
@@ -1022,6 +1137,8 @@
         }
         
         resetExportStateAfterSave() {
+            window.__tariffExportPauseCustomizer = false;
+            localStorage.removeItem('tariff_export_pause_customizer');
             localStorage.removeItem('tariff_export_state');
             localStorage.removeItem('tariff_export_data');
             localStorage.removeItem('tariff_export_log');
@@ -1044,12 +1161,24 @@
         }
 
         getCurrentCards() {
-            let cards = Array.from(document.querySelectorAll('.css-nr5n4g'));
-            if (cards.length === 0) {
-                const mainColumn = document.querySelector('.main-column');
-                if (mainColumn) cards = Array.from(mainColumn.querySelectorAll('.css-nr5n4g'));
+            let rawCards = Array.from(document.querySelectorAll('.css-nr5n4g, .e1wi2kqa9, .css-15ttl8p'));
+            if (rawCards.length === 0) {
+                const mainColumn = document.querySelector('.main-column, .tariff-layout, .css-1fttcpj');
+                if (mainColumn) rawCards = Array.from(mainColumn.querySelectorAll('.css-nr5n4g, .e1wi2kqa9, .css-15ttl8p'));
             }
-            return cards;
+            if (rawCards.length === 0) {
+                const titles = Array.from(document.querySelectorAll('.css-17i8ct5'));
+                rawCards = titles.map(t => t.closest('.css-nr5n4g, .e1wi2kqa9, .css-15ttl8p, [class*="e1wi2kqa"]') || t.parentElement?.parentElement).filter(Boolean);
+            }
+            const unique = [];
+            const seen = new Set();
+            for (const card of rawCards) {
+                if (!card || seen.has(card)) continue;
+                if (card.closest('#tariff-export-pro-sidebar, #tariff-manager-modal, .tariff-pro-rows-group')) continue;
+                seen.add(card);
+                unique.push(card);
+            }
+            return unique;
         }
         
         getTariffName(card) {
@@ -1057,10 +1186,21 @@
             return title ? title.textContent.trim() : 'Неизвестный тариф';
         }
         
+        getTariffUrl(tariffUuid) {
+            const orgMatch = window.location.pathname.match(/\/tariffs\/([0-9a-f-]+)/i);
+            const orgId = orgMatch ? orgMatch[1] : '';
+            if (orgId) {
+                return `${window.location.origin}/configurator/tariffs/${orgId}/${tariffUuid}`;
+            }
+            const cleanBase = (this.baseUrl || window.location.href).split('?')[0].split('#')[0].replace(/\/+$/, '');
+            return `${cleanBase}/${tariffUuid}`;
+        }
+
         async openAndCollect(tariffUrl, tariffName) {
             return new Promise(async (resolve) => {
                 const requestId = Date.now() + '_' + Math.random();
                 
+                localStorage.removeItem('collected_tariff_data');
                 localStorage.setItem('tariff_to_collect', JSON.stringify({
                     name: tariffName,
                     url: tariffUrl,
@@ -1070,10 +1210,12 @@
                 window.open(tariffUrl, '_blank');
                 
                 const startedAt = Date.now();
-                const timeoutMs = 60000;
+                const timeoutMs = 25000;
                 const checkInterval = setInterval(() => {
                     if (this.shouldStop) {
                         clearInterval(checkInterval);
+                        localStorage.removeItem('tariff_to_collect');
+                        localStorage.removeItem('collected_tariff_data');
                         resolve(null);
                         return;
                     }
@@ -1085,6 +1227,7 @@
                             if (data.requestId === requestId) {
                                 clearInterval(checkInterval);
                                 localStorage.removeItem('collected_tariff_data');
+                                localStorage.removeItem('tariff_to_collect');
                                 resolve(data.tariffData);
                                 return;
                             }
@@ -1095,6 +1238,8 @@
 
                     if (Date.now() - startedAt >= timeoutMs) {
                         clearInterval(checkInterval);
+                        console.warn(`[TariffExportPro] Таймаут ожидания данных для: ${tariffName}`);
+                        localStorage.removeItem('tariff_to_collect');
                         resolve(null);
                     }
                 }, 100);
@@ -1149,7 +1294,117 @@
             });
         }
         
-        async getUuidFromCard(titleElement, tariffName) {
+        findUuidInObject(obj, currentOrgId, depth) {
+            if (!obj || typeof obj !== 'object' || depth > 5) return null;
+            if (Array.isArray(obj) && obj.length > 1) return null;
+            if (obj.tariffs && Array.isArray(obj.tariffs) && obj.tariffs.length > 1) return null;
+            const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+            try {
+                const str = JSON.stringify(obj);
+                const matches = str.match(uuidRegex);
+                if (matches) {
+                    for (const m of matches) {
+                        if (!currentOrgId || m.toLowerCase() !== currentOrgId.toLowerCase()) return m;
+                    }
+                }
+            } catch (e) {
+                for (const k of Object.keys(obj)) {
+                    if (k === 'return' || k === 'child' || k === 'sibling' || k === 'stateNode') continue;
+                    const val = obj[k];
+                    if (typeof val === 'string') {
+                        const matches = val.match(uuidRegex);
+                        if (matches) {
+                            for (const m of matches) {
+                                if (!currentOrgId || m.toLowerCase() !== currentOrgId.toLowerCase()) return m;
+                            }
+                        }
+                    } else if (val && typeof val === 'object') {
+                        const sub = this.findUuidInObject(val, currentOrgId, depth + 1);
+                        if (sub) return sub;
+                    }
+                }
+            }
+            return null;
+        }
+
+        extractUuidFast(card) {
+            if (!card) return null;
+            const orgMatch = window.location.pathname.match(/\/tariffs\/([0-9a-f-]+)/i);
+            const orgId = orgMatch ? orgMatch[1].toLowerCase() : '';
+            const uuidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
+            // 1. Прямая ссылка в карточке (берем с конца, так как первый UUID может быть orgId)
+            const link = card.querySelector('a[href*="/tariffs/"]');
+            if (link && link.href) {
+                const matches = link.href.match(uuidRegex);
+                if (matches && matches.length > 0) {
+                    for (let i = matches.length - 1; i >= 0; i--) {
+                        const m = matches[i];
+                        if (!orgId || m.toLowerCase() !== orgId) return m;
+                    }
+                }
+            }
+
+            // 2. Атрибуты карточки и дочерних элементов
+            const allElements = [card, ...card.querySelectorAll('*')];
+            for (const el of allElements) {
+                if (el.getAttributeNames) {
+                    for (const attr of el.getAttributeNames()) {
+                        if (attr.startsWith('data-') || attr === 'id') {
+                            const val = el.getAttribute(attr);
+                            if (val) {
+                                const matches = val.match(uuidRegex);
+                                if (matches) {
+                                    for (const m of matches) {
+                                        if (!orgId || m.toLowerCase() !== orgId) return m;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. React Fiber и memoizedProps / reactProps
+                const fiberKey = Object.keys(el).find(k => k.startsWith('__reactFiber') || k.startsWith('__reactProps'));
+                if (fiberKey && el[fiberKey]) {
+                    const obj = el[fiberKey];
+                    if (fiberKey.startsWith('__reactProps')) {
+                        const found = this.findUuidInObject(obj, orgId, 0);
+                        if (found) return found;
+                    }
+                    let fiber = obj;
+                    for (let d = 0; fiber && d < 4; d++) {
+                        if (fiber.memoizedProps && fiber.memoizedProps.tariffs && Array.isArray(fiber.memoizedProps.tariffs) && fiber.memoizedProps.tariffs.length > 1) {
+                            break;
+                        }
+                        if (fiber.key && typeof fiber.key === 'string') {
+                            const m = fiber.key.match(uuidRegex);
+                            if (m) {
+                                for (const id of m) {
+                                    if (!orgId || id.toLowerCase() !== orgId) return id;
+                                }
+                            }
+                        }
+                        if (fiber.memoizedProps) {
+                            const found = this.findUuidInObject(fiber.memoizedProps, orgId, 0);
+                            if (found) return found;
+                        }
+                        fiber = fiber.return;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        async getUuidFromCard(card, titleElement, tariffName) {
+            // Быстрое бескликовое извлечение (0мс, не меняет URL, не дергает историю назад и не сбрасывает авторизацию)
+            const fastUuid = this.extractUuidFast(card);
+            if (fastUuid) {
+                return fastUuid;
+            }
+
+            // Запасной вариант через клик (если в Fiber/DOM UUID не найден)
             if (!titleElement) return null;
             
             const beforeUrl = window.location.href;
@@ -1424,6 +1679,10 @@
         
         observeForTariffs() {
             const observer = new MutationObserver(() => {
+                if (window.__tariffCleanDOMMode) {
+                    this.removeNavigationButtons();
+                    return;
+                }
                 if (this.shouldShowNavigationButtons()) {
                     if (!document.querySelector('#tariff-export-pro-nav-btn') || 
                         !document.querySelector('#tariff-create-pro-nav-btn') || 
@@ -1450,80 +1709,80 @@
     if (!window.tariffExportPro) {
         window.tariffExportPro = new TariffExporter();
     }
-})();
 
-// Добавляем обработчик сообщений для связи с popup (если нужно)
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'getStatus' && window.tariffExportPro) {
-        const hasData = window.tariffExportPro.tariffsData.length > 0;
-        sendResponse({
-            success: true,
-            hasData: hasData,
-            tariffCount: window.tariffExportPro.tariffsData.length
-        });
-        return true;
-    }
-    
-    if (request.action === 'showExportSidebar' && window.tariffExportPro) {
-        window.tariffExportPro.showSidebar();
-        sendResponse({success: true});
-        return true;
-    }
-    
-    if (request.action === 'showImportSidebar') {
-        if (window.tariffExportPro) {
-            window.tariffExportPro.showImportSidebar();
+    // Обработчик сообщений для связи с popup
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        if (request.action === 'getStatus' && window.tariffExportPro) {
+            const hasData = window.tariffExportPro.tariffsData.length > 0;
+            sendResponse({
+                success: true,
+                hasData: hasData,
+                tariffCount: window.tariffExportPro.tariffsData.length
+            });
+            return true;
         }
-        sendResponse({success: true});
-        return true;
-    }
-
-    if (request.action === 'showRenameSidebar') {
-        if (window.tariffExportPro) {
-            window.tariffExportPro.showRenameSidebar();
-        }
-        sendResponse({success: true});
-        return true;
-    }
-
-    if (request.action === 'showPvzSidebar') {
-        if (window.tariffExportPro) {
-            window.tariffExportPro.showPvzSidebar();
-        }
-        sendResponse({success: true});
-        return true;
-    }
-});
-
-// Для совместимости с popup.js
-window.addEventListener('message', (event) => {
-    if (event.data && event.data.action === 'showImportSidebar') {
-        if (window.tariffExportPro) {
-            window.tariffExportPro.showImportSidebar();
-        }
-    }
-
-    if (event.data && event.data.action === 'showUpdateSidebar') {
-        if (window.tariffExportPro) {
-            window.tariffExportPro.showUpdateSidebar();
-        }
-    }
-
-    if (event.data && event.data.action === 'showRenameSidebar') {
-        if (window.tariffExportPro) {
-            window.tariffExportPro.showRenameSidebar();
-        }
-    }
-    
-    if (event.data && event.data.action === 'showExportSidebar') {
-        if (window.tariffExportPro) {
+        
+        if (request.action === 'showExportSidebar' && window.tariffExportPro) {
             window.tariffExportPro.showSidebar();
+            sendResponse({success: true});
+            return true;
         }
-    }
+        
+        if (request.action === 'showImportSidebar') {
+            if (window.tariffExportPro) {
+                window.tariffExportPro.showImportSidebar();
+            }
+            sendResponse({success: true});
+            return true;
+        }
 
-    if (event.data && event.data.action === 'showPvzSidebar') {
-        if (window.tariffExportPro) {
-            window.tariffExportPro.showPvzSidebar();
+        if (request.action === 'showRenameSidebar') {
+            if (window.tariffExportPro) {
+                window.tariffExportPro.showRenameSidebar();
+            }
+            sendResponse({success: true});
+            return true;
         }
-    }
-});
+
+        if (request.action === 'showPvzSidebar') {
+            if (window.tariffExportPro) {
+                window.tariffExportPro.showPvzSidebar();
+            }
+            sendResponse({success: true});
+            return true;
+        }
+    });
+
+    // Для совместимости с popup.js
+    window.addEventListener('message', (event) => {
+        if (event.data && event.data.action === 'showImportSidebar') {
+            if (window.tariffExportPro) {
+                window.tariffExportPro.showImportSidebar();
+            }
+        }
+
+        if (event.data && event.data.action === 'showUpdateSidebar') {
+            if (window.tariffExportPro) {
+                window.tariffExportPro.showUpdateSidebar();
+            }
+        }
+
+        if (event.data && event.data.action === 'showRenameSidebar') {
+            if (window.tariffExportPro) {
+                window.tariffExportPro.showRenameSidebar();
+            }
+        }
+        
+        if (event.data && event.data.action === 'showExportSidebar') {
+            if (window.tariffExportPro) {
+                window.tariffExportPro.showSidebar();
+            }
+        }
+
+        if (event.data && event.data.action === 'showPvzSidebar') {
+            if (window.tariffExportPro) {
+                window.tariffExportPro.showPvzSidebar();
+            }
+        }
+    });
+})();

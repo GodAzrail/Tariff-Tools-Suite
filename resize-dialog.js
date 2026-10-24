@@ -2,9 +2,12 @@
     'use strict';
     console.log('📏 resize-dialog.js loaded (del-orgs scroll fix)');
 
-    const PAGE_OK = window.location.pathname.includes('/configurator/del-orgs');
+    function isPageOk() {
+        if (window.location.pathname.includes('/tariffs')) return false;
+        return window.location.pathname.includes('/configurator/');
+    }
     const DIALOG_ID = 'select-volume-weight-dlg';
-    const TITLE_MATCHES = ['создание набора мгх сетки', 'мгх', 'сетки'];
+    const TITLE_MATCHES = ['создание набора мгх сетки', 'мгх', 'сетки', 'массогабаритные'];
 
     const SET_BLOCK_SELECTORS = [
         '.css-3w0yoi.e1avfrlx1',
@@ -220,7 +223,7 @@
     }
 
     function applyResize(dialog) {
-        if (!PAGE_OK) return false;
+        if (!isPageOk()) return false;
         if (!dialog || !isVisible(dialog)) return false;
 
         clearManagedStyles(dialog);
@@ -326,7 +329,7 @@
     }
 
     function process(force) {
-        if (!PAGE_OK) return;
+        if (!isPageOk()) return;
 
         const dialog = findDialog();
         if (!dialog) return;
@@ -349,6 +352,7 @@
     }
 
     function scheduleProcess(delay = 120, force = false) {
+        if (window.__disableResizeObservers) return;
         window.clearTimeout(processTimer);
         processTimer = window.setTimeout(() => process(force), delay);
     }
@@ -363,6 +367,7 @@
 
     window.addEventListener('resize', () => scheduleProcess(80, true), { passive: true });
     window.addEventListener('load', () => scheduleProcess(100, true), { passive: true });
+    window.addEventListener('spa-route-changed', () => scheduleProcess(150, true));
 
     setTimeout(() => scheduleProcess(0, true), 300);
     setTimeout(() => scheduleProcess(0, true), 800);

@@ -41,9 +41,10 @@
 
         // Агрессивный ловец первой загрузки страницы
         startInitialization() {
+            if (window.__tariffCleanDOMMode) return;
             let attempts = 0;
             const check = () => {
-                if (this.initialized || !window.location.href.includes('/tariffs/')) return;
+                if (window.__tariffCleanDOMMode || this.initialized || !window.location.href.includes('/tariffs/')) return;
                 
                 const container = document.querySelector('.css-1fttcpj');
                 const hasCards = container && container.querySelectorAll('.e1wi2kqa9, .css-nr5n4g, .css-15ttl8p').length > 0;
@@ -72,6 +73,16 @@
             window.addEventListener('popstate', () => {
                 if (this.initialized) this.restoreOriginalDOM();
             }, true);
+
+            window.addEventListener('spa-route-changed', (e) => {
+                const newUrl = e.detail || window.location.href;
+                if (!newUrl.includes('/tariffs/')) {
+                    if (this.initialized) this.restoreOriginalDOM();
+                } else {
+                    if (this.initialized) this.restoreOriginalDOM();
+                    setTimeout(() => this.startInitialization(), 300);
+                }
+            });
 
             const self = this;
             if (!window.originalPushState) window.originalPushState = history.pushState;
@@ -121,7 +132,7 @@
         }
 
         isExportPauseActive() {
-            return window.__tariffExportPauseCustomizer === true || localStorage.getItem('tariff_export_pause_customizer') === '1';
+            return window.__tariffCleanDOMMode === true || window.__tariffExportPauseCustomizer === true || localStorage.getItem('tariff_export_pause_customizer') === '1';
         }
 
         // УМНЫЙ СКАНЕР 

@@ -1,20 +1,20 @@
 (function () {
+  'use strict';
+
   if (window.TariffResizeCore && typeof window.TariffResizeCore.watchDialog === 'function') {
     console.log('[ResizeCore] TariffResizeCore with watchDialog already exists');
     return;
   }
 
-  const BLOCKED_PATH_PREFIX = '/configurator/tariffs';
-
   function isBlockedPage() {
-    try {
-      return window.location.pathname.startsWith(BLOCKED_PATH_PREFIX);
-    } catch (e) {
-      return false;
+    // Ресайз модалок отключен на страницах тарифов
+    if (window.location.pathname.includes('/tariffs')) {
+      return true;
     }
+    return false;
   }
 
-  function getResponsiveHeight(percent = 80, minHeight = 400, maxHeight = 900) {
+  function getResponsiveHeight(percent = 85, minHeight = 450, maxHeight = 950) {
     const screenHeight = window.innerHeight || document.documentElement.clientHeight || 900;
     let calculatedHeight = Math.round(screenHeight * (percent / 100));
     calculatedHeight = Math.max(minHeight, Math.min(calculatedHeight, maxHeight));
@@ -24,7 +24,35 @@
   function isVisible(el) {
     if (!el) return false;
     const style = window.getComputedStyle(el);
-    return style.display !== 'none' && style.visibility !== 'hidden';
+    return style.display !== 'none' && style.visibility !== 'hidden' && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.open);
+  }
+
+  function findDialog(id, selector, title) {
+    // 1. По ID, если передан
+    if (id) {
+      const el = document.getElementById(id);
+      if (el) return el;
+    }
+    // 2. По селектору, если передан
+    if (selector) {
+      try {
+        const el = document.querySelector(selector);
+        if (el) return el;
+      } catch (e) {}
+    }
+    // 3. Поиск среди открытых диалогов по заголовку
+    if (title) {
+      const dialogs = document.querySelectorAll('dialog[open], [role="dialog"]');
+      const targetTitle = title.toLowerCase().trim();
+      for (const dlg of dialogs) {
+        if (dlg.hasAttribute('data-tts-inspector-ignore')) continue;
+        const titleEl = dlg.querySelector('._title_1ghey_45, [class*="title"], h1, h2, h3, [role="heading"]');
+        if (titleEl && titleEl.textContent && titleEl.textContent.toLowerCase().trim().includes(targetTitle)) {
+          return dlg;
+        }
+      }
+    }
+    return null;
   }
 
   function applyDialogPosition(dialog, responsiveHeight) {
@@ -49,20 +77,21 @@
     return noopObserver;
   }
 
-  function createObserver({ dialogId, resizedAttr, delay = 400, resizeFn, rowCountFn, observerWindowKey }) {
+  function createObserver({ dialogId, selector, title, resizedAttr, delay = 350, resizeFn, rowCountFn, observerWindowKey }) {
     if (isBlockedPage()) {
       return createNoopObserver(observerWindowKey);
     }
 
     const observer = new MutationObserver(() => {
       if (window.__disableResizeObservers) return;
-      if (isBlockedPage()) return; // Защита от SPA-переходов
+      if (isBlockedPage()) return;
 
-      const dialog = document.getElementById(dialogId);
+      const dialog = findDialog(dialogId, selector, title);
       if (!dialog || !isVisible(dialog) || dialog.hasAttribute(resizedAttr)) return;
 
       setTimeout(() => {
         try {
+          if (window.__disableResizeObservers) return;
           const success = typeof resizeFn === 'function' ? resizeFn(dialog) : false;
           if (success) {
             dialog.setAttribute(resizedAttr, 'true');
@@ -74,7 +103,7 @@
             }
           }
         } catch (e) {
-          console.error('[ResizeCore] resize error for', dialogId, e);
+          console.error('[ResizeCore] resize error for', dialogId || title, e);
         }
       }, delay);
     });
@@ -96,15 +125,17 @@
     return observer;
   }
 
-  // Compatibility API expected by newer wrappers
+  // Compatibility API expected by dialog resizers
   function watchDialog(options = {}) {
     const {
       observerKey,
       startKey,
       stopKey,
       id,
+      selector,
+      title,
       flag,
-      delay = 400,
+      delay = 350,
       resize,
       getRowCount
     } = options;
@@ -113,15 +144,14 @@
 
     const start = () => {
       if (isBlockedPage()) {
-        console.log('[ResizeCore] watchDialog skipped on blocked page:', window.location.pathname, id);
         return createNoopObserver(observerKey);
       }
 
-      // Initial pass
+      // Начальный проход
       setTimeout(() => {
         if (window.__disableResizeObservers) return;
-        if (isBlockedPage()) return; // Доп. защита при инициализации
-        const dialog = document.getElementById(id);
+        if (isBlockedPage()) return;
+        const dialog = findDialog(id, selector, title);
         if (!dialog || dialog.hasAttribute(resizedAttr)) return;
 
         try {
@@ -136,12 +166,14 @@
             }
           }
         } catch (e) {
-          console.error('[ResizeCore] initial watchDialog resize error for', id, e);
+          console.error('[ResizeCore] initial watchDialog resize error for', id || title, e);
         }
-      }, Math.max(delay, 300));
+      }, Math.max(delay, 250));
 
       return createObserver({
         dialogId: id,
+        selector,
+        title,
         resizedAttr,
         delay,
         resizeFn: resize,
@@ -174,22 +206,18 @@
   }
 
   window.TariffResizeCore = {
-    disabled: isBlockedPage(),
+    disabled: false,
     getResponsiveHeight,
     applyDialogPosition,
     createObserver,
     watchDialog,
+    findDialog,
     isVisible,
   };
 
-  if (isBlockedPage()) {
-    console.log('[ResizeCore] Compatibility mode enabled; resize disabled on /configurator/tariffs');
-  } else {
-    console.log('[ResizeCore] Compatibility mode enabled with watchDialog');
-  }
+  console.log('[ResizeCore] Ядро ресайза диалогов инициализировано (универсальный режим)');
 
-  // Обновляем статус блокировки при переходе по ссылкам SPA
   window.addEventListener('spa-route-changed', () => {
-    window.TariffResizeCore.disabled = isBlockedPage();
+    window.TariffResizeCore.disabled = false;
   });
 })();

@@ -74,6 +74,20 @@
             if (this.debugEnabled) console.log(...args);
         }
 
+        isFromTariffManager() {
+            if (this.fromTariffManager === true) return true;
+            if (this.config && this.config.fromTariffManager === true) return true;
+            if (localStorage.getItem('tariff_to_save') || localStorage.getItem('tariff_to_collect')) return true;
+            try {
+                const updateData = localStorage.getItem('tariff_update_data');
+                if (updateData) {
+                    const parsed = JSON.parse(updateData);
+                    if (parsed.fromTariffManager === true) return true;
+                }
+            } catch (_) {}
+            return false;
+        }
+
         debugWarn(...args) {
             if (this.debugEnabled) console.warn(...args);
         }
@@ -85,7 +99,7 @@
         }
 
         restoreSidebarFromStorage() {
-            if (this.isCreatorFlowActive()) return;
+            if (this.isCreatorFlowActive() || this.isFromTariffManager()) return;
             if (!this.isImporting && this.currentIndex >= this.tariffsToCreate.length) return;
             const savedData = localStorage.getItem('tariff_update_data');
             if (savedData) {
@@ -120,7 +134,7 @@
         }
         
         checkForContinueImport() {
-            if (this.isCreatorFlowActive()) return;
+            if (this.isCreatorFlowActive() || this.isFromTariffManager()) return;
             if (!this.isImporting && this.currentIndex >= this.tariffsToCreate.length) return;
             const savedData = localStorage.getItem('tariff_update_data');
             if (savedData && !this.importStarted) {
@@ -155,7 +169,7 @@
         }
         
         checkForCreateForm() {
-            if (this.isCreatorFlowActive()) return;
+            if (this.isCreatorFlowActive() || this.isFromTariffManager()) return;
             if (!this.isImporting || this.currentIndex >= this.tariffsToCreate.length || this.tariffsToCreate.length === 0) return;
             const nameInput = document.querySelector('input[placeholder*="Введите название тарифа"]');
             
@@ -226,6 +240,9 @@
         }
 
         isImportBlockEnabled(blockKey) {
+            if (this.isFromTariffManager()) {
+                return !!this.config?.importBlocks?.[blockKey];
+            }
             return this.config?.importBlocks?.[blockKey] !== false;
         }
 
@@ -242,12 +259,24 @@
                 case 'payment': return !!(tariff.payment && (typeof tariff.payment.card === 'boolean' || typeof tariff.payment.cash === 'boolean'));
                 case 'acceptance': return !!(tariff.acceptance && (typeof tariff.acceptance.sameDay === 'boolean' || typeof tariff.acceptance.nextDay === 'boolean'));
                 case 'saleTypes': return !!(tariff.saleTypes && ['product', 'markdown', 'legal', 'service'].some(key => typeof tariff.saleTypes[key] === 'boolean'));
-                case 'floor': return !!((tariff.elevatorPrice && (tariff.elevatorPrice.internalPrice || tariff.elevatorPrice.customerPrice)) || (Array.isArray(tariff.floorRows) && tariff.floorRows.length > 0));
+                case 'floor': return !!((tariff.elevatorPrice && (tariff.elevatorPrice.internalPrice || tariff.elevatorPrice.customerPrice || tariff.elevatorPrice.internal || tariff.elevatorPrice.customer)) || (Array.isArray(tariff.floorRows) && tariff.floorRows.length > 0));
                 default: return false;
             }
         }
 
         shouldImportBlock(tariff, blockKey, blockLabel) {
+            // Если передан tariff.importBlocks (точечное сохранение из Tariff Manager)
+            // или запрос инициирован Tariff Manager, строго ориентируемся на importBlocks:
+            // выполнять блок только если он явно включен (true)!
+            if (tariff && tariff.importBlocks && typeof tariff.importBlocks === 'object') {
+                return tariff.importBlocks[blockKey] === true;
+            }
+            if (this.isFromTariffManager()) {
+                if (this.config && this.config.importBlocks && typeof this.config.importBlocks === 'object') {
+                    return this.config.importBlocks[blockKey] === true;
+                }
+                return false;
+            }
             if (!this.isImportBlockEnabled(blockKey)) return false;
             if (!this.hasTariffBlockData(tariff, blockKey)) return false;
             return true;
@@ -439,7 +468,7 @@
             const normalizedTarget = String(name || '').trim().toLowerCase();
             if (!normalizedTarget) return null;
 
-            const cards = Array.from(document.querySelectorAll('.css-nr5n4g'));
+            const cards = Array.from(document.querySelectorAll('.css-nr5n4g, .e1wi2kqa9, .css-15ttl8p'));
             const getTitleText = (card) => {
                 const title = card.querySelector('.css-17i8ct5') || card.querySelector('a, span, h3, h4');
                 return String(title?.textContent || card.textContent || '').trim().toLowerCase();
@@ -550,6 +579,9 @@
         }
 
         createConfigSidebar() {
+            if (window.TariffToolsCore && typeof window.TariffToolsCore.closeAllSidebars === 'function') {
+                window.TariffToolsCore.closeAllSidebars();
+            }
             this.removeLegacyImportButton();
             if (this.sidebar) {
                 this.sidebar.remove();
@@ -637,7 +669,11 @@
         }
 
         createSidebar() {
+            if (this.isFromTariffManager()) return;
             if (this.sidebar && this.sidebar.id === 'tariff-update-sidebar') return;
+            if (window.TariffToolsCore && typeof window.TariffToolsCore.closeAllSidebars === 'function') {
+                window.TariffToolsCore.closeAllSidebars();
+            }
             if (this.sidebar) this.sidebar.remove();
             
             this.sidebar = document.createElement('div');
@@ -877,7 +913,7 @@
 
                 const deliveryDays = normalizeCell(getCell(row, 'Количество дней доставки', -1));
                 const cutoffTime = normalizeCell(getCell(row, 'Отсечка оформления заказа', -1));
-                const maxOrderCost = normalizeCell(getCell(row, 'Лимит стоимости', -1)) || normalizeCell(getCell(row, 'Ограничение максимальной стоимости заказа', -1));
+                const maxOrderCost = normalizeCell(getCell(row, 'Лимит стоимости заказа, руб', -1)) || normalizeCell(getCell(row, 'Лимит стоимости', -1)) || normalizeCell(getCell(row, 'Ограничение максимальной стоимости заказа', -1));
                 const rawStartDate = getCell(row, 'Дата начала', -1);
                 const rawEndDate = getCell(row, 'Дата окончания', -1) || getCell(row, 'С конечной датой', -1);
                 
@@ -1046,27 +1082,139 @@
             this.updateSidebarDisplay();
         }
         
+        findTariffNameInput(root = document) {
+            return root.querySelector('input[placeholder*="Введите название тарифа"]')
+                || root.querySelector('input[placeholder*="название тарифа"]')
+                || root.querySelector('input[placeholder*="Название тарифа"]')
+                || root.querySelector('input[name="name"]')
+                || root.querySelector('input[test-id*="tariff-name"]')
+                || root.querySelector('input[test-id*="name"]');
+        }
+
+        findMainSaveButton(root = document, requireEnabled = false) {
+            const allButtons = Array.from(root.querySelectorAll('button, [role="button"], input[type="submit"]'));
+            for (const btn of allButtons) {
+                if (btn.closest('#tariff-export-pro-sidebar, #tariff-manager-modal, #af-tariff-panel')) continue;
+                if (btn.closest('dialog[open], [role="dialog"], [aria-modal="true"]')) continue;
+
+                const text = (btn.textContent || btn.value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+                const isSave = text === 'сохранить' ||
+                               text.startsWith('сохранить ') ||
+                               text.endsWith(' сохранить') ||
+                               text.includes('сохранить тариф') ||
+                               text.includes('сохранить изменения') ||
+                               btn.getAttribute('data-action') === 'save' ||
+                               btn.getAttribute('test-id') === 'save-button';
+
+                if (isSave) {
+                    if (!requireEnabled || !btn.disabled) {
+                        return btn;
+                    }
+                }
+            }
+            return null;
+        }
+
+        findTariffEditButtonOnPage() {
+            // Если на странице уже доступно поле ввода названия тарифа,
+            // страница УЖЕ находится в режиме редактирования — никаких кнопок нажимать не нужно!
+            if (this.findTariffNameInput()) {
+                return null;
+            }
+
+            // Список запрещенных ключевых слов разделов:
+            // Карандаши внутри этих секций открывают внутренние модальные окна настроек секций,
+            // и НИ В КОЕМ СЛУЧАЕ не должны нажиматься для перехода страницы тарифа в режим редактирования!
+            const blockedSectionKeywords = [
+                'зоны', 'зона', 'филиал', 'мгх', 'сетка', 'интервал',
+                'подъем', 'этаж', 'лифт', 'лестниц', 'оплат', 'прием',
+                'виды продажи', 'вид продажи', 'параметр', 'лимит', 'срок'
+            ];
+
+            const isSectionElement = (el) => {
+                if (!el) return false;
+                if (el.closest('#tariff-export-pro-sidebar, #tariff-manager-modal, #af-tariff-panel, dialog, [role="dialog"], table, tbody, tr, fieldset')) {
+                    return true;
+                }
+                const parent = el.parentElement;
+                if (!parent) return false;
+
+                const parentText = (parent.textContent || '').trim().toLowerCase();
+                if (parentText.length < 100 && blockedSectionKeywords.some(kw => parentText.includes(kw))) {
+                    return true;
+                }
+
+                const prev = el.previousElementSibling;
+                if (prev) {
+                    const prevText = (prev.textContent || '').trim().toLowerCase();
+                    if (blockedSectionKeywords.some(kw => prevText.includes(kw))) {
+                        return true;
+                    }
+                }
+
+                return false;
+            };
+
+            // 1. Поиск кнопок с текстом "Редактировать" или "Изменить" (строго вне секций)
+            const buttons = Array.from(document.querySelectorAll('button, a[role="button"], div[role="button"]'));
+            for (const btn of buttons) {
+                if (isSectionElement(btn)) continue;
+                const text = (btn.textContent || '').trim();
+                const title = (btn.title || btn.getAttribute('aria-label') || '').trim();
+                if (/^(редактировать|изменить)$/i.test(text) || /^(редактировать|изменить)/i.test(title)) {
+                    return btn;
+                }
+            }
+
+            // 2. Карточка тарифа (для списочного режима)
+            const card = document.querySelector('.css-nr5n4g, .e1wi2kqa9, .css-15ttl8p');
+            if (card) {
+                const cardBtn = this.findEditButtonInTariffCard(card);
+                if (cardBtn && !isSectionElement(cardBtn)) return cardBtn;
+            }
+
+            // 3. Карандашик в главном заголовке тарифа (header / title-wrap)
+            const headerContainer = document.querySelector('header, [class*="header"], [class*="title-wrap"], h1, h2');
+            if (headerContainer && !isSectionElement(headerContainer)) {
+                const headerPencil = headerContainer.querySelector('.icomoon-icon__pencil, span[class*="pencil"], [class*="pencil"]');
+                if (headerPencil) {
+                    const btn = headerPencil.closest('button, a, div[role="button"]') || headerPencil;
+                    if (!isSectionElement(btn)) return btn;
+                }
+            }
+
+            return null;
+        }
+
         async waitForCreateFormReady(tariffName = '') {
             let nameInput = null;
-            let saveButton = null;
 
-            for (let attempt = 1; attempt <= 40; attempt++) {
-                nameInput = document.querySelector('input[placeholder*="Введите название тарифа"]');
-                saveButton = Array.from(document.querySelectorAll('button')).find(btn => {
-                    const text = (btn.textContent || '').trim();
-                    return text === 'Сохранить' && !btn.closest('dialog[open]') && !btn.disabled;
-                });
+            // Форма готова к редактированию сразу, как только появилось поле названия (не требуем включенную кнопку Сохранить до внесения правок!)
+            for (let attempt = 1; attempt <= 25; attempt++) {
+                nameInput = this.findTariffNameInput();
 
-                if (nameInput && saveButton) return { nameInput, saveButton };
-                await this.delay(250);
+                if (nameInput) {
+                    return {
+                        nameInput,
+                        saveButton: this.findMainSaveButton(document, false)
+                    };
+                }
+
+                // Если поле названия не появилось после 1.5 сек (10 попыток), проверяем кнопку "Редактировать"
+                if (attempt === 10 || attempt === 20) {
+                    const editBtn = this.findTariffEditButtonOnPage();
+                    if (editBtn) {
+                        this.debugLog('[TariffUpdater] Нажатие кнопки перехода в режим редактирования:', editBtn);
+                        editBtn.click();
+                    }
+                }
+
+                await this.delay(150);
             }
 
             return {
-                nameInput: document.querySelector('input[placeholder*="Введите название тарифа"]'),
-                saveButton: Array.from(document.querySelectorAll('button')).find(btn => {
-                    const text = (btn.textContent || '').trim();
-                    return text === 'Сохранить' && !btn.closest('dialog[open]') && !btn.disabled;
-                })
+                nameInput: this.findTariffNameInput(),
+                saveButton: this.findMainSaveButton(document, false)
             };
         }
 
@@ -1171,6 +1319,9 @@
                 }
             ];
 
+            const enabledBlocks = blockHandlers.filter(b => this.shouldImportBlock(tariff, b.key, b.label));
+            this.addSidebarLog(`⚙️ Применяются блоки: ${enabledBlocks.map(b => b.label).join(', ') || 'нет'}`, 'info');
+
             for (const block of blockHandlers) {
                 if (!this.ensureCanContinue(`перед блоком ${block.label}`)) return false;
                 if (!this.shouldImportBlock(tariff, block.key, block.label)) continue;
@@ -1181,52 +1332,84 @@
 
             if (!this.ensureCanContinue(`перед заполнением названия тарифа ${tariff.name}`)) return false;
 
-            let nameInput = null;
-            let attempts = 0;
-            while (!nameInput && attempts < 20) {
-                if (!this.ensureCanContinue(`во время поиска поля названия для ${tariff.name}`)) return false;
-                nameInput = document.querySelector('input[placeholder*="Введите название тарифа"]');
-                if (!nameInput) {
+            if (tariff.hasNameChange || (tariff.name && tariff.originalName && tariff.name !== tariff.originalName)) {
+                let nameInput = null;
+                let attempts = 0;
+                while (!nameInput && attempts < 20) {
+                    if (!this.ensureCanContinue(`во время поиска поля названия для ${tariff.name}`)) return false;
+                    nameInput = document.querySelector('input[placeholder*="Введите название тарифа"]');
+                    if (!nameInput) {
+                        await this.delay(300);
+                        attempts++;
+                    }
+                }
+                if (nameInput) {
+                    this.setInputValue(nameInput, tariff.name);
+                    nameInput.blur();
                     await this.delay(300);
-                    attempts++;
                 }
             }
-
-            if (!nameInput) return this.setCreateFailure('name_input_not_found', { tariffName: tariff.name });
-
-            this.setInputValue(nameInput, tariff.name);
-            nameInput.blur();
-            await this.delay(300);
 
             if (!this.ensureCanContinue(`перед сохранением тарифа ${tariff.name}`)) return false;
 
             let saveButton = null;
-            attempts = 0;
-            while (!saveButton && attempts < 30) {
+            let saveAttempts = 0;
+            this.addSidebarLog('🔍 Поиск и ожидание кнопки «Сохранить»...', 'info');
+            while (!saveButton && saveAttempts < 35) {
                 if (!this.ensureCanContinue(`во время ожидания кнопки сохранения для ${tariff.name}`)) return false;
-                const allButtons = document.querySelectorAll('button');
-                for (const btn of allButtons) {
-                    const text = (btn.textContent || '').trim();
-                    if (text === 'Сохранить') {
-                        const inDialog = !!btn.closest('dialog[open]');
-                        if (!inDialog && !btn.disabled) {
+
+                // Убеждаемся, что диалоги закрыты перед поиском главной кнопки сохранения
+                const openDialog = document.querySelector('dialog[open], [role="dialog"][open]');
+                if (!openDialog) {
+                    const allButtons = Array.from(document.querySelectorAll('button, [role="button"], input[type="submit"], input[type="button"]'));
+                    for (const btn of allButtons) {
+                        if (btn.closest('#tariff-export-pro-sidebar, #tariff-manager-modal, #af-tariff-panel')) continue;
+                        if (btn.closest('dialog[open], [role="dialog"], [aria-modal="true"]')) continue;
+
+                        const text = (btn.textContent || btn.value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+                        const isSave = text === 'сохранить' ||
+                                       text.startsWith('сохранить ') ||
+                                       text.endsWith(' сохранить') ||
+                                       text.includes('сохранить тариф') ||
+                                       text.includes('сохранить изменения') ||
+                                       btn.getAttribute('data-action') === 'save' ||
+                                       btn.getAttribute('test-id') === 'save-button';
+
+                        if (isSave && !btn.disabled) {
                             saveButton = btn;
                             break;
                         }
                     }
+                } else {
+                    // Если еще открыт диалог, нажимаем сохранить в диалоге
+                    const dlgSave = Array.from(openDialog.querySelectorAll('button, [role="button"]')).find(b => {
+                        const t = (b.textContent || b.value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+                        return (t.includes('сохранить') || b.getAttribute('data-action') === 'save') && !b.disabled;
+                    });
+                    if (dlgSave) {
+                        this.addSidebarLog('💾 Нажимаем сохранить во внутреннем диалоге...', 'info');
+                        dlgSave.click();
+                        await this.delay(600);
+                    }
                 }
+
                 if (!saveButton) {
-                    await this.delay(500);
-                    attempts++;
+                    await this.delay(350);
+                    saveAttempts++;
                 }
             }
 
-            if (!saveButton) return this.setCreateFailure('save_button_not_found', { tariffName: tariff.name });
+            if (!saveButton) {
+                this.addSidebarLog(`❌ Кнопка «Сохранить» не найдена или отключена (disabled) после ${saveAttempts} попыток`, 'error');
+                return this.setCreateFailure('save_button_not_found', { tariffName: tariff.name });
+            }
 
             if (!this.ensureCanContinue(`непосредственно перед кликом по кнопке сохранения для ${tariff.name}`)) return false;
+            this.addSidebarLog('💾 Нажимаем главную кнопку «Сохранить» формы тарифа...', 'info');
             saveButton.click();
             await this.delay(3000);
             if (this.stopRequested()) return false;
+            this.addSidebarLog('🎉 Форма тарифа успешно сохранена на сайте!', 'success');
             return true;
         }
 
@@ -1270,6 +1453,12 @@
                 updated = true;
             }
 
+            const timeInputs = document.querySelectorAll('input[type="time"], input[placeholder*="чч:мм"], input[placeholder*="00:00"]');
+            if (tariff.startTime && timeInputs[0]) {
+                this.setInputValue(timeInputs[0], tariff.startTime);
+                updated = true;
+            }
+
             const endDateCheckbox = this.findCheckboxByText(document.body, 'С конечной датой');
             if (endDateCheckbox) {
                 const shouldHaveEnd = !!tariff.endDate;
@@ -1304,6 +1493,12 @@
                 }
             }
             
+            if (!pencilIcon) {
+                const titleEl = Array.from(document.querySelectorAll('span, div, label, p, h1, h2, h3, h4')).find(el => el.textContent.trim() === 'МГХ сетка');
+                pencilIcon = titleEl?.parentElement?.querySelector('span[class*="pencil"], .icomoon-icon__pencil')
+                    || titleEl?.closest('div')?.querySelector('span[class*="pencil"], .icomoon-icon__pencil');
+            }
+
             if (!pencilIcon) return false;
             
             pencilIcon.click();
@@ -1321,9 +1516,24 @@
             
             if (!dialog) return false;
             
-            const bulkInternal = dialog.querySelector('#af-bulk0');
-            const bulkCustomer = dialog.querySelector('#af-bulk1');
-            const bulkReturn = dialog.querySelector('#af-bulk2');
+            let bulkInternal = null;
+            let bulkCustomer = null;
+            let bulkReturn = null;
+            let transferBtn = null;
+
+            for (let wait = 0; wait < 30; wait++) {
+                bulkInternal = dialog.querySelector('#af-bulk0');
+                bulkCustomer = dialog.querySelector('#af-bulk1');
+                bulkReturn = dialog.querySelector('#af-bulk2');
+                transferBtn = dialog.querySelector('#af-transfer-all');
+                if (bulkInternal && bulkCustomer && transferBtn) break;
+                await this.delay(200);
+            }
+
+            if (!bulkInternal || !bulkCustomer) {
+                this.addSidebarLog('❌ Панель автозаполнения цен МГХ (#af-bulk) не появилась', 'error');
+                return false;
+            }
             
             if (bulkInternal && bulkCustomer) {
                 const cleanMgxValue = (val) => {
@@ -1406,6 +1616,12 @@
                     }
                 }
             }
+            if (!pencilIcon) {
+                const titleEl = Array.from(document.querySelectorAll('span, div, label, p, h1, h2, h3, h4')).find(el => el.textContent.trim() === 'Зоны доставки');
+                pencilIcon = titleEl?.parentElement?.querySelector('span[class*="pencil"], .icomoon-icon__pencil')
+                    || titleEl?.closest('div')?.querySelector('span[class*="pencil"], .icomoon-icon__pencil');
+            }
+
             if (!pencilIcon) return false;
             
             pencilIcon.click();
@@ -1450,6 +1666,12 @@
                     }
                 }
             }
+            if (!pencilIcon) {
+                const titleEl = Array.from(document.querySelectorAll('span, div, label, p, h1, h2, h3, h4')).find(el => el.textContent.trim() === 'Филиалы обслуживания');
+                pencilIcon = titleEl?.parentElement?.querySelector('span[class*="pencil"], .icomoon-icon__pencil')
+                    || titleEl?.closest('div')?.querySelector('span[class*="pencil"], .icomoon-icon__pencil');
+            }
+
             if (!pencilIcon) return false;
             
             pencilIcon.click();
@@ -1488,6 +1710,12 @@
 
             const titleSpan = Array.from(document.querySelectorAll('span')).find(el => el.textContent.trim() === 'Интервалы доставки');
             const pencilIcon = titleSpan?.parentElement?.querySelector('span[class*="pencil"], .icomoon-icon__pencil');
+            if (!pencilIcon) {
+                const titleEl = Array.from(document.querySelectorAll('span, div, label, p, h1, h2, h3, h4')).find(el => el.textContent.trim() === 'Интервалы доставки');
+                pencilIcon = titleEl?.parentElement?.querySelector('span[class*="pencil"], .icomoon-icon__pencil')
+                    || titleEl?.closest('div')?.querySelector('span[class*="pencil"], .icomoon-icon__pencil');
+            }
+
             if (!pencilIcon) return false;
 
             pencilIcon.click();
@@ -1501,7 +1729,10 @@
             }
             if (!dialog) return false;
 
-            const normalizeTime = (value) => String(value || '').trim().slice(0, 5);
+            const normalizeTime = (value) => {
+                const m = String(value || '').match(/\d{1,2}:\d{2}/);
+                return m ? m[0] : String(value || '').trim().slice(0, 5);
+            };
             const rows = dialog.querySelectorAll('tbody tr');
             rows.forEach(row => {
                 const start = normalizeTime(row.querySelector('[test-id="startTime"] span')?.textContent);
@@ -1512,11 +1743,14 @@
                 if (!checkbox) return;
 
                 if (match) {
-                    if (!checkbox.checked) checkbox.click();
+                    const shouldBeChecked = match.enabled !== false;
+                    if (shouldBeChecked && !checkbox.checked) checkbox.click();
+                    else if (!shouldBeChecked && checkbox.checked) checkbox.click();
+
                     const internalInput = row.querySelector('[test-id="internalPriceAdjustment"] input');
                     const customerInput = row.querySelector('[test-id="priceAdjustment"] input');
-                    this.setInputValue(internalInput, match.internalPriceAdjustment || '');
-                    this.setInputValue(customerInput, match.priceAdjustment || '');
+                    if (internalInput) this.setInputValue(internalInput, match.internalPriceAdjustment || '');
+                    if (customerInput) this.setInputValue(customerInput, match.priceAdjustment || '');
                 } else if (checkbox.checked) {
                     checkbox.click();
                 }
@@ -1565,15 +1799,23 @@
         }
 
         async setupSaleTypes(tariff) {
+            this.addSidebarLog('🏷️ Настройка видов продажи...', 'info');
             const saleProduct = tariff.saleTypes?.product !== undefined ? tariff.saleTypes.product : this.config.saleProduct;
             const saleMarkdown = tariff.saleTypes?.markdown !== undefined ? tariff.saleTypes.markdown : this.config.saleMarkdown;
             const saleLegal = tariff.saleTypes?.legal !== undefined ? tariff.saleTypes.legal : this.config.saleLegal;
             const saleService = tariff.saleTypes?.service !== undefined ? tariff.saleTypes.service : this.config.saleService;
 
-            await this.setSaleTypeCheckbox('Исправный товар', 'product', saleProduct);
-            await this.setSaleTypeCheckbox('Уцененный товар', 'markdown', saleMarkdown);
-            await this.setSaleTypeCheckbox('Юридические лица', 'legal', saleLegal);
-            await this.setSaleTypeCheckbox('Сервисный центр', 'service', saleService);
+            const resProd = await this.setSaleTypeCheckbox('Исправный товар', 'product', saleProduct);
+            this.addSidebarLog(`  • Исправный товар: ${saleProduct ? 'включен' : 'выключен'} ${resProd ? '✓' : '⚠️ не переключился'}`, resProd ? 'info' : 'warning');
+
+            const resMark = await this.setSaleTypeCheckbox('Уцененный товар', 'markdown', saleMarkdown);
+            this.addSidebarLog(`  • Уцененный товар: ${saleMarkdown ? 'включен' : 'выключен'} ${resMark ? '✓' : '⚠️ не переключился'}`, resMark ? 'info' : 'warning');
+
+            const resLeg = await this.setSaleTypeCheckbox('Юридические лица', 'legal', saleLegal);
+            this.addSidebarLog(`  • Юридические лица: ${saleLegal ? 'включен' : 'выключен'} ${resLeg ? '✓' : '⚠️ не переключился'}`, resLeg ? 'info' : 'warning');
+
+            const resServ = await this.setSaleTypeCheckbox('Сервисный центр', 'service', saleService);
+            this.addSidebarLog(`  • Сервисный центр: ${saleService ? 'включен' : 'выключен'} ${resServ ? '✓' : '⚠️ не переключился'}`, resServ ? 'info' : 'warning');
 
             const productState = this.findSaleTypeCheckbox('Исправный товар', 'product');
             const markdownState = this.findSaleTypeCheckbox('Уцененный товар', 'markdown');
@@ -1583,7 +1825,10 @@
             const anyChecked = this.isSaleTypeChecked(productState) || this.isSaleTypeChecked(markdownState) ||
                                this.isSaleTypeChecked(legalState) || this.isSaleTypeChecked(serviceState);
 
-            if (!anyChecked) await this.setSaleTypeCheckbox('Исправный товар', 'product', true);
+            if (!anyChecked) {
+                this.addSidebarLog('⚠️ Ни один вид продажи не выбран, включаем «Исправный товар» по умолчанию', 'warning');
+                await this.setSaleTypeCheckbox('Исправный товар', 'product', true);
+            }
 
             await this.delay(200);
             return true;
@@ -1607,7 +1852,20 @@
 
         triggerSaleTypeClick(target) {
             if (!target) return false;
+            const input = target.tagName === 'INPUT' ? target : target.querySelector?.('input[type="checkbox"]');
+            if (input && typeof input.click === 'function') {
+                input.click();
+                return true;
+            }
+            if (typeof target.click === 'function') {
+                target.click();
+                return true;
+            }
             const clickable = target.closest?.('label, [role="checkbox"], button') || target;
+            if (typeof clickable.click === 'function') {
+                clickable.click();
+                return true;
+            }
             clickable.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
             return true;
         }
@@ -1615,20 +1873,56 @@
         async setSaleTypeCheckbox(labelText, idPart, expectedState) {
             if (expectedState === undefined) return false;
 
-            for (let attempt = 0; attempt < 5; attempt++) {
+            for (let attempt = 0; attempt < 6; attempt++) {
                 const target = this.findSaleTypeCheckbox(labelText, idPart);
                 if (!target) {
                     await this.delay(200);
                     continue;
                 }
 
-                const before = this.isSaleTypeChecked(target);
-                if (before === expectedState) return true;
+                // Находим непосредственный <input type="checkbox"> если target - это контейнер или label
+                const inputEl = target.tagName === 'INPUT' ? target : (target.querySelector?.('input[type="checkbox"], [role="checkbox"]') || target);
 
-                this.triggerSaleTypeClick(target);
-                await this.delay(250);
+                const currentChecked = this.isSaleTypeChecked(inputEl);
+                if (currentChecked === expectedState) return true;
 
-                const refreshed = this.findSaleTypeCheckbox(labelText, idPart) || target;
+                // 1. Прямой клик по самому input (в большинстве браузеров и React переключает состояние и генерирует события)
+                if (typeof inputEl.click === 'function') {
+                    inputEl.click();
+                } else if (typeof target.click === 'function') {
+                    target.click();
+                }
+
+                await this.delay(180);
+                if (this.isSaleTypeChecked(inputEl) === expectedState) return true;
+
+                // 2. Клик по родительскому label
+                const label = inputEl.closest?.('label') || target.closest?.('label') || (inputEl.id ? document.querySelector(`label[for="${inputEl.id}"]`) : null);
+                if (label && typeof label.click === 'function') {
+                    label.click();
+                }
+
+                await this.delay(180);
+                if (this.isSaleTypeChecked(inputEl) === expectedState) return true;
+
+                // 3. React prototype setter + dispatch input & change
+                if (inputEl.tagName === 'INPUT' && inputEl.type === 'checkbox') {
+                    const inputProto = window.HTMLInputElement.prototype;
+                    const checkedDescriptor = Object.getOwnPropertyDescriptor(inputProto, 'checked');
+                    if (checkedDescriptor && checkedDescriptor.set) {
+                        checkedDescriptor.set.call(inputEl, expectedState);
+                    } else {
+                        inputEl.checked = expectedState;
+                    }
+                    inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                } else if (inputEl.getAttribute?.('role') === 'checkbox') {
+                    inputEl.setAttribute('aria-checked', String(expectedState));
+                    inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                await this.delay(200);
+                const refreshed = this.findSaleTypeCheckbox(labelText, idPart) || inputEl;
                 if (this.isSaleTypeChecked(refreshed) === expectedState) return true;
             }
             return false;
@@ -1669,11 +1963,55 @@
         }
 
         findSaleTypeCheckbox(labelText, idPart) {
-            const roots = [document.querySelector('form'), document.body].filter(Boolean);
+            // Приоритет 1: выделенная секция "вид продажи"
+            const saleSection = Array.from(document.querySelectorAll('div, section, fieldset, form'))
+                .find(el => {
+                    const txt = (el.textContent || '').toLowerCase();
+                    return (txt.includes('вид продажи') || txt.includes('допустимый к оформлению')) &&
+                           (txt.includes('сервис') || txt.includes('исправн') || txt.includes('уцен') || txt.includes('юр'));
+                });
+
+            const roots = [saleSection, document.querySelector('form'), document.body].filter(Boolean);
+
+            const keywordsMap = {
+                service: ['сервис', 'сервисный'],
+                product: ['исправн', 'исправный'],
+                markdown: ['уцен', 'уцененный'],
+                legal: ['юр', 'юрид']
+            };
+            const keywords = keywordsMap[idPart] || [labelText.toLowerCase()];
+
             for (const root of roots) {
+                const candidates = Array.from(root.querySelectorAll('label, div, span, p, tr, td'));
+                for (const el of candidates) {
+                    const directText = Array.from(el.childNodes)
+                        .filter(n => n.nodeType === Node.TEXT_NODE)
+                        .map(n => n.textContent)
+                        .join(' ')
+                        .toLowerCase();
+                    const fullText = (el.textContent || '').trim().toLowerCase();
+
+                    if (keywords.some(kw => directText.includes(kw) || (fullText.includes(kw) && fullText.length < 50))) {
+                        if (el.tagName === 'INPUT' && el.type === 'checkbox') return el;
+                        const innerCb = el.querySelector('input[type="checkbox"], [role="checkbox"]');
+                        if (innerCb) return innerCb;
+                        const forId = el.getAttribute?.('for') || el.closest('label')?.getAttribute?.('for');
+                        if (forId) {
+                            const forEl = document.getElementById(forId);
+                            if (forEl) return forEl;
+                        }
+                        const label = el.closest('label');
+                        if (label) {
+                            const cbInLabel = label.querySelector('input[type="checkbox"], [role="checkbox"]');
+                            if (cbInLabel) return cbInLabel;
+                        }
+                    }
+                }
+
                 const checkboxByText = this.findCheckboxByText(root, labelText);
                 if (checkboxByText) return checkboxByText;
             }
+
             return document.querySelector(`input[type="checkbox"][id*="${idPart}"], [role="checkbox"][id*="${idPart}"], [aria-label*="${labelText}"]`);
         }
         
@@ -1714,6 +2052,7 @@
         }
 
         showSidebar() {
+            if (this.isFromTariffManager()) return;
             this.hideOtherSidebars();
             if (this.sidebar) {
                 this.sidebar.style.display = 'flex';
@@ -1819,8 +2158,17 @@
             const lastEntry = this.logEntries[this.logEntries.length - 1];
             if (lastEntry && lastEntry.message === message && lastEntry.type === type) return;
 
-            const entry = { time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' }), message: message, type: type };
+            const timeStr = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const entry = { time: timeStr, message: message, type: type };
             this.logEntries.push(entry);
+
+            if (this.isFromTariffManager()) {
+                try {
+                    const events = JSON.parse(localStorage.getItem('tariff_save_events') || '[]');
+                    events.push(entry);
+                    localStorage.setItem('tariff_save_events', JSON.stringify(events));
+                } catch (_) {}
+            }
             while (this.logEntries.length > 120) this.logEntries.shift();
             this.saveLogToStorage();
             this.renderLog();
@@ -1841,6 +2189,12 @@
         async openAndSetupFloorLifting(tariff) {
             const titleSpan = Array.from(document.querySelectorAll('span')).find(el => el.textContent.trim() === 'Подъем на этаж');
             const pencilIcon = titleSpan?.parentElement?.querySelector('span[class*="pencil"], .icomoon-icon__pencil');
+            if (!pencilIcon) {
+                const titleEl = Array.from(document.querySelectorAll('span, div, label, p, h1, h2, h3, h4')).find(el => el.textContent.trim() === 'Подъем на этаж');
+                pencilIcon = titleEl?.parentElement?.querySelector('span[class*="pencil"], .icomoon-icon__pencil')
+                    || titleEl?.closest('div')?.querySelector('span[class*="pencil"], .icomoon-icon__pencil');
+            }
+
             if (!pencilIcon) return false;
 
             pencilIcon.click();
@@ -1854,9 +2208,15 @@
             }
             if (!dialog) return false;
 
-            const topInputs = dialog.querySelectorAll('div._inputWrapper_17t87_8._medium_17t87_141 input[type="text"]');
-            if (topInputs[0]) this.setInputValue(topInputs[0], tariff.elevatorPrice?.internalPrice || '');
-            if (topInputs[1]) this.setInputValue(topInputs[1], tariff.elevatorPrice?.customerPrice || '');
+            const internalElevator = tariff.elevatorPrice?.internalPrice ?? tariff.elevatorPrice?.internal ?? '';
+            const customerElevator = tariff.elevatorPrice?.customerPrice ?? tariff.elevatorPrice?.customer ?? '';
+
+            let topInputs = dialog.querySelectorAll('div._inputWrapper_17t87_8._medium_17t87_141 input[type="text"]');
+            if (!topInputs || topInputs.length < 2) {
+                topInputs = dialog.querySelectorAll('input[type="text"]');
+            }
+            if (topInputs[0]) this.setInputValue(topInputs[0], internalElevator);
+            if (topInputs[1]) this.setInputValue(topInputs[1], customerElevator);
 
             const floorRows = tariff.floorRows || [];
             const rows = dialog.querySelectorAll('table[test-id="lifting-table"] tbody tr');
